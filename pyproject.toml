@@ -1,7 +1,13 @@
 [project]
 name = "test-dh-mcp"
 version = "0.1.0"
-description = "Add your description here"
+description = "MCP server and client for tool registration, integration with Claude Desktop, and automated testing/debugging workflows."
 readme = "README.md"
-requires-python = ">=3.9"
-dependencies = []
+requires-python = ">=3.10"
+dependencies = [
+    "aiohttp>=3.11.18",
+    "autogen-ext[mcp]>=0.5.4",
+    "deephaven-server>=0.38.0",
+    "mcp[cli]>=1.6.0",
+    "pydeephaven>=0.38.0",
+]

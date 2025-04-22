@@ -17,39 +17,43 @@ This project demonstrates how to define and run an MCP (Multi-Channel Protocol) 
 
 [`uv`](https://github.com/astral-sh/uv) is a modern, ultra-fast Python package manager and runner. It can be used as a drop-in replacement for pip and venv, providing faster installs and improved dependency management.
 
-### Typical workflow with uv
+### Key Concepts
+- **`pyproject.toml`**: The modern, recommended way to specify your project's dependencies and metadata. uv uses this as the source of truth.
+- **`requirements.txt`**: Supported for compatibility with traditional Python tools and workflows. Optional if you use `pyproject.toml`.
+- **`uv.lock`**: Lockfile for reproducible installs (auto-managed by uv).
 
-1. **Install uv** (if not already):
+### Modern Workflow (Recommended)
+1. **Add dependencies directly to your project:**
    ```bash
-   pip install uv
-   # or
-   brew install astral-sh/uv/uv
-   ```
-2. **Initialize your project (optional):**
-   ```bash
-   uv init
-   uv python pin 3.13  # Pin to your Python version
-   ```
-3. **Install dependencies:**
-   ```bash
-   uv pip install -r requirements.txt
-   # or add new dependencies:
+   uv pip install <package>
+   # Example:
    uv pip install autogen-ext mcp[cli]
    ```
-4. **Create a virtual environment (optional, recommended):**
+   This updates `pyproject.toml` and `uv.lock`.
+2. **Sync environment:**
    ```bash
-   uv venv .venv
-   source .venv/bin/activate
+   uv pip install  # Installs all dependencies from pyproject.toml
    ```
-5. **Run your scripts:**
+3. **Run scripts:**
    ```bash
    uv run src/mcp_server.py
    uv run src/mcp_client.py
    ```
 
-- `uv` will use your `.venv` automatically if present. If you have multiple environments, use `--active` to target the currently activated one.
-- You can use `uv` and `venv` together or separately.
-- `uv` is fully compatible with `requirements.txt` and `pyproject.toml`.
+### Compatibility Workflow (requirements.txt)
+- If you have an existing `requirements.txt`, you can use:
+  ```bash
+  uv pip install -r requirements.txt
+  # or
+  uv add --requirements requirements.txt
+  ```
+- This will sync dependencies and update your lockfile. You can keep both files in sync for maximum compatibility.
+
+### Notes
+- `requirements.txt` is **optional** with uv. For new projects, you can rely entirely on `pyproject.toml` and `uv.lock`.
+- For legacy projects or sharing with users of pip, keep `requirements.txt` up to date.
+- `uv` works with or without a virtual environment. Use `uv venv .venv` to create one if desired.
+- If you have multiple environments, use `--active` to target the currently activated one.
 
 ## Quick Start: Server
 
