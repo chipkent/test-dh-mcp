@@ -1,35 +1,19 @@
 # test-dh-mcp
 
-This project demonstrates how to define and run an MCP (Multi-Channel Protocol) server using the FastMCP implementation.
+This project demonstrates how to define and run an MCP (Multi-Channel Protocol) server using the FastMCP implementation. It includes examples for tool registration, server/client usage, and integration with Claude Desktop and MCP Inspector.
+
+- [MCP Server Quickstart](https://modelcontextprotocol.io/quickstart/server)
+- [mcp Python package documentation (PyPI)](https://pypi.org/project/mcp/)
+
 
 ## Project Structure
 
-- `src/dhmcp/server.py` — Main entrypoint to configure and run the MCP server.
-- `src/dhmcp/tools.py` — Example tools registered with the MCP server using decorators.
-- `requirements.txt` — Python dependencies (including `mcp[cli]`).
+- `src/mcp_server.py` — Main entrypoint to run the MCP server (configurable for SSE or stdio transport).
+- `src/dhmcp/__init__.py` — All tools are registered here using the `@mcp_server.tool()` decorator.
+- `src/mcp_client.py` — Example async client for testing tools.
+- `requirements.txt` — Python dependencies (including `mcp[cli]` and `autogen-ext`).
 
-## Quick Start
-
-### Using this server with Claude Desktop
-
-You can connect Claude Desktop to your local MCP server to use custom tools.
-
-1. **Start the MCP server** as described below (see 'Run the MCP Server').
-2. **Open Claude Desktop**.
-3. Go to **Settings > Integrations > MCP Servers** (or similar, depending on your version).
-4. Click **Add MCP Server** and enter the following URL:
-
-   ```
-   http://localhost:8000/mcp
-   ```
-
-   If you changed the port or host, adjust the URL accordingly (e.g., `http://127.0.0.1:YOUR_PORT/mcp`).
-
-5. Save and enable the integration.
-6. Claude Desktop should now be able to discover and use the tools you have registered in your MCP server (e.g., `echo_tool`).
-
-For more details, see the Claude Desktop documentation for MCP integration.
-
+## Quick Start: Server
 
 ### 1. Install dependencies
 
@@ -43,18 +27,71 @@ pip install -r requirements.txt
 
 ### 2. Run the MCP Server
 
+From the project root, run (choose the transport that fits your use case):
+
+- **SSE transport (default, for browser/web clients):**
+  ```bash
+  python src/mcp_server.py
+  # or, explicitly:
+  python src/mcp_server.py --transport sse
+  ```
+  The server will listen on http://localhost:8000/sse
+
+- **Stdio transport (recommended for Claude Desktop/Inspector):**
+  ```bash
+  python src/mcp_server.py --transport stdio
+  ```
+  The server will communicate via stdio (no HTTP port needed).
+
+You should see log output indicating the server is running with the selected transport.
+
+## Quick Start: Client
+
+> **Note:** The Python client (`mcp_client.py`) requires the MCP server to be running in **SSE mode** (the default). It will not work if the server is running in stdio mode.
+
+### 1. Install dependencies
+
+It is recommended to use a virtual environment:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 2. Run the MCP Client
+
 From the project root, run:
 
 ```bash
 cd src
-python -m dhmcp.server
+python -m mcp_client
 ```
 
-You should see log output indicating the server is running (by default on port 8000, using SSE transport).
+You should see log output indicating the client is running and listing available tools.
 
-### 3. Registering Tools
+## Claude Desktop
 
-Define new tools in `tools.py` using the `@mcp_server.tool()` decorator. Example:
+You can connect Claude Desktop to your local stdio MCP server to use custom tools.
+
+1. Edit `~/Library/Application\ Support/Claude/claude_desktop_config.json`:
+    ```
+    {
+        "mcpServers": {
+            "test-dh-mcp": {
+                "command": "/Users/chip/dev/test-dh-mcp/venv/bin/python3",
+                "args": ["/Users/chip/dev/test-dh-mcp/src/mcp_server.py", "--transport", "stdio"],
+            }
+        }
+    }
+    ```
+4. Restart Claude Desktop.
+5. Debugging logs can be found in `~/Library/Logs/Claude/`
+
+
+## Registering Tools
+
+Define new tools in `dhmcp/__init__.py` using the `@mcp_server.tool()` decorator. Example:
 
 ```python
 @mcp_server.tool()
@@ -67,10 +104,42 @@ def echo_tool(message: str) -> str:
 
 ## Troubleshooting
 
-- Ensure you are running commands from the correct directory (`src` for module execution).
+- Ensure you are running commands from the correct directory (`src` for direct script execution).
 - If you change tool definitions, restart the server.
-- For connection issues, check that the server is running and listening on the expected address/port.
+- For connection issues, check that the server is running and listening on the expected address/port (for SSE), or correctly attached via stdio (for Claude/Inspector).
+
+### Is the server running?
+
+- **SSE mode:**
+  ```bash
+  curl http://localhost:8000/sse
+  ```
+- **Stdio mode:**
+  - Check your Claude/Inspector logs for successful connection and tool listing.
+
+### MCP Inspector
+
+The MCP Inspector is a tool that allows you to inspect the state of an MCP server.
+
+1. Install the MCP Inspector:
+    ```bash
+    npm install -g @modelcontextprotocol/inspector
+    ```
+
+2. Run the MCP Inspector:
+    - ** SSE mode: **
+        ```
+        cd /Users/chip/dev/test-dh-mcp/src
+        npx @modelcontextprotocol/inspector \
+        /Users/chip/dev/test-dh-mcp/venv/bin/python3 mcp_server.py --transport sse
+        ```
+
+    - ** Stdio mode: **
+        ```
+        cd /Users/chip/dev/test-dh-mcp/src
+        npx @modelcontextprotocol/inspector \
+        /Users/chip/dev/test-dh-mcp/venv/bin/python3 mcp_server.py --transport stdio
+        ```
 
 ---
 
-For more information, see the documentation for the [mcp](https://pypi.org/project/mcp/) package.
