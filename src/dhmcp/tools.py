@@ -23,3 +23,15 @@ def echo_tool(message: str) -> str:
     result = f"Echo: {message}"
     logging.info("echo_tool called with message: %r, returning: %r", message, result)
     return result
+
+@mcp_server.tool()
+def gnome_count_colorado() -> int:
+    """
+    Returns the current number of gnomes in Colorado.
+
+    Returns:
+        int: The number of gnomes.
+    """
+    count = 53
+    logging.info("gnome_count_colorado called, returning: %d", count)
+    return count
