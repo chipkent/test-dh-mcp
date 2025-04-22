@@ -13,16 +13,62 @@ This project demonstrates how to define and run an MCP (Multi-Channel Protocol) 
 - `src/mcp_client.py` — Example async client for testing tools.
 - `requirements.txt` — Python dependencies (including `mcp[cli]` and `autogen-ext`).
 
+## Using `uv` for Dependency Management
+
+[`uv`](https://github.com/astral-sh/uv) is a modern, ultra-fast Python package manager and runner. It can be used as a drop-in replacement for pip and venv, providing faster installs and improved dependency management.
+
+### Typical workflow with uv
+
+1. **Install uv** (if not already):
+   ```bash
+   pip install uv
+   # or
+   brew install astral-sh/uv/uv
+   ```
+2. **Initialize your project (optional):**
+   ```bash
+   uv init
+   uv python pin 3.13  # Pin to your Python version
+   ```
+3. **Install dependencies:**
+   ```bash
+   uv pip install -r requirements.txt
+   # or add new dependencies:
+   uv pip install autogen-ext mcp[cli]
+   ```
+4. **Create a virtual environment (optional, recommended):**
+   ```bash
+   uv venv .venv
+   source .venv/bin/activate
+   ```
+5. **Run your scripts:**
+   ```bash
+   uv run src/mcp_server.py
+   uv run src/mcp_client.py
+   ```
+
+- `uv` will use your `.venv` automatically if present. If you have multiple environments, use `--active` to target the currently activated one.
+- You can use `uv` and `venv` together or separately.
+- `uv` is fully compatible with `requirements.txt` and `pyproject.toml`.
+
 ## Quick Start: Server
 
 ### 1. Install dependencies
 
 It is recommended to use a virtual environment:
 
+- Using `venv`:
+
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+```
+
+- Using `uv`:
+
+```bash
+uv pip install -r requirements.txt
 ```
 
 ### 2. Run the MCP Server
@@ -34,12 +80,16 @@ From the project root, run (choose the transport that fits your use case):
   python src/mcp_server.py
   # or, explicitly:
   python src/mcp_server.py --transport sse
+  # or, using uv:
+  uv run src/mcp_server.py
   ```
   The server will listen on http://localhost:8000/sse
 
 - **Stdio transport (recommended for Claude Desktop/Inspector):**
   ```bash
   python src/mcp_server.py --transport stdio
+  # or, using uv:
+  uv run src/mcp_server.py --transport stdio
   ```
   The server will communicate via stdio (no HTTP port needed).
 
@@ -53,19 +103,36 @@ You should see log output indicating the server is running with the selected tra
 
 It is recommended to use a virtual environment:
 
+- Using `venv`:
+
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+- Using `uv`:
+
+```bash
+uv pip install -r requirements.txt
+```
+
 ### 2. Run the MCP Client
 
 From the project root, run:
 
+- Using `venv`:
+
 ```bash
 cd src
 python -m mcp_client
+```
+
+- Using `uv`:
+
+```bash
+cd src
+uv run mcp_client.py
 ```
 
 You should see log output indicating the client is running and listing available tools.
@@ -75,6 +142,9 @@ You should see log output indicating the client is running and listing available
 You can connect Claude Desktop to your local stdio MCP server to use custom tools.
 
 1. Edit `~/Library/Application\ Support/Claude/claude_desktop_config.json`:
+
+    - Using `venv`:
+
     ```
     {
         "mcpServers": {
@@ -85,6 +155,20 @@ You can connect Claude Desktop to your local stdio MCP server to use custom tool
         }
     }
     ```
+
+    - Using `uv`:
+
+    ```
+    {
+        "mcpServers": {
+            "test-dh-mcp": {
+                "command": "uv",
+                "args": ["run", "/Users/chip/dev/test-dh-mcp/src/mcp_server.py", "--transport", "stdio"],
+            }
+        }
+    }
+    ```
+    
 4. Restart Claude Desktop.
 5. Debugging logs can be found in `~/Library/Logs/Claude/`
 
@@ -128,18 +212,38 @@ The MCP Inspector is a tool that allows you to inspect the state of an MCP serve
 
 2. Run the MCP Inspector:
     - ** SSE mode: **
-        ```
+
+        - Using `venv`:
+
+        ```bash
         cd /Users/chip/dev/test-dh-mcp/src
         npx @modelcontextprotocol/inspector \
         /Users/chip/dev/test-dh-mcp/venv/bin/python3 mcp_server.py --transport sse
         ```
 
+        - Using `uv`:
+
+        ```bash
+        cd /Users/chip/dev/test-dh-mcp/src
+        npx @modelcontextprotocol/inspector \
+        uv run mcp_server.py --transport sse
+        ```
+
     - ** Stdio mode: **
+
+        - Using `venv`:
+
         ```
         cd /Users/chip/dev/test-dh-mcp/src
         npx @modelcontextprotocol/inspector \
         /Users/chip/dev/test-dh-mcp/venv/bin/python3 mcp_server.py --transport stdio
         ```
 
----
+        - Using `uv`:
+
+        ```bash
+        cd /Users/chip/dev/test-dh-mcp/src
+        npx @modelcontextprotocol/inspector \
+        uv run mcp_server.py --transport stdio
+        ```
 
