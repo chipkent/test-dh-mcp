@@ -1,3 +1,5 @@
 mcp[cli]
 deephaven-server
 pydeephaven
+aiohttp
+autogen-ext[mcp]
