@@ -65,6 +65,9 @@ t1 = empty_table(1000000).update(["C1 = i", "C2 = ii", "C3 = `abc`"])
 t2 = t1.update(["C4 = C1 + 1000000"])
 t3 = time_table("PT15m").update(["C1 = i", "C2 = ii", "C3 = `abc`"])
 
+if port != 10000:
+    t4 = empty_table(1000000).update(["C1 = i", "C2 = ii", "C3 = `abc`"])
+
 # Keep the server running until interrupted by user
 print("Press Ctrl+C to exit")
 try:
