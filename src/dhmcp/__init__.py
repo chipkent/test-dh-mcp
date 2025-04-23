@@ -85,3 +85,39 @@ def pydeephaven_list_tables(server_url: str = "localhost", port: int = 10000) ->
         #TODO: this is returning with isError=False
         logging.error(f"pydeephaven_list_tables failed for host {server_url}: {e!r}", exc_info=True)
         return [f"Error: {e}"]
+
+@mcp_server.tool()
+def pydeephaven_table_schemas(server_url: str = "localhost", port: int = 10000) -> list:
+    """
+    Connect to a Deephaven server using pydeephaven and return the names and schemas of all tables in the session.
+
+    Args:
+        server_url (str): The URL of the Deephaven server.
+        port (int): The port of the Deephaven server.
+    Returns:
+        list: List of dicts with table name and schema (list of column name/type pairs).
+    Example return value:
+        [
+            {"table": "t1", "schema": [{"name": "C1", "type": "int"}, ...]},
+            ...
+        ]
+    """
+    import logging
+    from pydeephaven import Session
+    logging.info(f"pydeephaven_table_schemas called with server_url: {server_url!r}, port: {port!r}")
+    results = []
+    try:
+        with Session(host=server_url, port=port) as session:
+            logging.info(f"Session created successfully for host: {server_url}")
+            for table in session.tables:
+                meta_table = session.open_table(table).meta_table.to_arrow()
+                print(meta_table)
+
+                # meta_table is a pyarrow.Table with columns: 'Name', 'DataType', etc.
+                schema = {row["Name"]: row["DataType"] for row in meta_table.to_pylist()}
+                results.append({"table": table, "schema": schema})
+            logging.info(f"pydeephaven_table_schemas returning: {results!r}")
+            return results
+    except Exception as e:
+        logging.error(f"pydeephaven_table_schemas failed for host {server_url}: {e!r}", exc_info=True)
+        return [f"Error: {e}"]
