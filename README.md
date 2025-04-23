@@ -153,8 +153,8 @@ You can connect Claude Desktop to your local stdio MCP server to use custom tool
     {
         "mcpServers": {
             "test-dh-mcp": {
-                "command": "/Users/chip/dev/test-dh-mcp/venv/bin/python3",
-                "args": ["/Users/chip/dev/test-dh-mcp/src/mcp_server.py", "--transport", "stdio"],
+                "command": "/Users/chip/dev/test-dh-mcp/.venv/bin/python3",
+                "args": ["/Users/chip/dev/test-dh-mcp/src/mcp_server.py", "--transport", "stdio"]
             }
         }
     }
@@ -167,7 +167,14 @@ You can connect Claude Desktop to your local stdio MCP server to use custom tool
         "mcpServers": {
             "test-dh-mcp": {
                 "command": "uv",
-                "args": ["run", "/Users/chip/dev/test-dh-mcp/src/mcp_server.py", "--transport", "stdio"],
+                "args": [
+                    "--directory",
+                    "/Users/chip/dev/test-dh-mcp/src",
+                    "run", 
+                    "mcp_server.py", 
+                    "--transport", 
+                    "stdio"
+                ]
             }
         }
     }

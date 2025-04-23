@@ -58,3 +58,30 @@ def gnome_count_colorado() -> int:
     count = 53
     logging.info("gnome_count_colorado called, returning: %d", count)
     return count
+
+@mcp_server.tool()
+def pydeephaven_list_tables(server_url: str = "localhost", port: int = 10000) -> list:
+    """
+    Connect to a Deephaven server using pydeephaven and return the list of table names in the session.
+
+    Args:
+        server_url (str): The URL of the Deephaven server.
+        port (int): The port of the Deephaven server.
+    Returns:
+        list: List of table names available in the session.
+    """
+    import logging
+    from pydeephaven import Session
+    logging.info(f"pydeephaven_list_tables called with server_url: {server_url!r}, port: {port!r}")
+    try:
+        with Session(host=server_url, port=port) as session:
+            logging.info(f"Session created successfully for host: {server_url}")
+            tables = list(session.tables)
+            logging.info(f"Retrieved tables from session: {tables!r}")
+            logging.info(f"Session closed for host: {server_url}")
+            logging.info(f"pydeephaven_list_tables returning tables: {tables!r}")
+            return tables
+    except Exception as e:
+        #TODO: this is returning with isError=False
+        logging.error(f"pydeephaven_list_tables failed for host {server_url}: {e!r}", exc_info=True)
+        return [f"Error: {e}"]
