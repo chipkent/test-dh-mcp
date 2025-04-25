@@ -149,6 +149,7 @@ def _get_worker_config(worker_name: str = None) -> Dict[str, Any]:
 
 mcp_server = FastMCP("test-dh-mcp")
 
+
 def _get_session(worker_name: str = None) -> Session:
     """
     Create and return a configured Deephaven Session, using JSON config.
@@ -217,6 +218,7 @@ def echo_tool(message: str) -> str:
     logging.info("echo_tool called with message: %r, returning: %r", message, result)
     return result
 
+
 @mcp_server.tool()
 def gnome_count_colorado() -> int:
     """
@@ -228,7 +230,6 @@ def gnome_count_colorado() -> int:
     count = 53
     logging.info("gnome_count_colorado called, returning: %d", count)
     return count
-
 
 
 @mcp_server.tool()
@@ -254,6 +255,7 @@ def deephaven_worker_names() -> list[str]:
     config = _load_config()
     workers = config.get("workers", {})
     return list(workers.keys())
+
 
 @mcp_server.tool()
 def deephaven_list_tables(worker_name: Optional[str] = None) -> list:
