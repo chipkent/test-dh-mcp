@@ -28,9 +28,71 @@ See the project README for more information on running the server and interactin
 """
 
 import logging
+import os
 from mcp.server.fastmcp import FastMCP
+from pydeephaven import Session
 
 mcp_server = FastMCP("test-dh-mcp")
+
+def _get_session() -> Session:
+    """
+    Create and return a configured Deephaven Session.
+
+    The session is configured using the following environment variables:
+        - DH_MCP_HOST: Hostname or IP address of the Deephaven server (default: None)
+        - DH_MCP_PORT: Port number for the Deephaven server (default: None)
+        - DH_MCP_AUTH_TYPE: Authentication type (default: 'Anonymous')
+        - DH_MCP_AUTH_TOKEN: Authentication token (default: '')
+        - DH_MCP_NEVER_TIMEOUT: Whether the session should never timeout (default: True)
+        - DH_MCP_SESSION_TYPE: Session type, e.g., 'python' (default: 'python')
+        - DH_MCP_USE_TLS: Whether to use TLS/SSL (default: False)
+        - DH_MCP_TLS_ROOT_CERTS: Path to TLS root certificates (default: None)
+        - DH_MCP_CLIENT_CERT_CHAIN: Path to client certificate chain (default: None)
+        - DH_MCP_CLIENT_PRIVATE_KEY: Path to client private key (default: None)
+        - DH_MCP_CLIENT_OPTS: Additional client options (default: None)
+        - DH_MCP_EXTRA_HEADERS: Extra headers to include in the session (default: None)
+
+    Returns:
+        Session: A configured Deephaven Session instance.
+    """
+
+    host = os.getenv("DH_MCP_HOST", None)
+    port = os.getenv("DH_MCP_PORT", None)
+    auth_type = os.getenv("DH_MCP_AUTH_TYPE", "Anonymous")
+    auth_token = os.getenv("DH_MCP_AUTH_TOKEN", "")
+    never_timeout = os.getenv("DH_MCP_NEVER_TIMEOUT", True)
+    session_type = os.getenv("DH_MCP_SESSION_TYPE", "python")
+    use_tls = os.getenv("DH_MCP_USE_TLS", False)
+    tls_root_certs = os.getenv("DH_MCP_TLS_ROOT_CERTS", None)
+    client_cert_chain = os.getenv("DH_MCP_CLIENT_CERT_CHAIN", None)
+    client_private_key = os.getenv("DH_MCP_CLIENT_PRIVATE_KEY", None)
+
+    logging.info(
+        "Creating Deephaven Session with: host=%r, port=%r, auth_type=%r, never_timeout=%r, session_type=%r, use_tls=%r, tls_root_certs=%s, client_cert_chain=%s, client_private_key=%s",
+        host, port, auth_type, never_timeout, session_type, use_tls,
+        "REDACTED" if tls_root_certs else None,
+        "REDACTED" if client_cert_chain else None,
+        "REDACTED" if client_private_key else None,
+    )
+    if auth_token:
+        logging.info("Auth token: REDACTED")
+
+    try:
+        return Session(
+            host=host, 
+            port=port,
+            auth_type=auth_type,
+            auth_token=auth_token,
+            never_timeout=never_timeout,
+            session_type=session_type,
+            use_tls=use_tls,
+            tls_root_certs=tls_root_certs,
+            client_cert_chain=client_cert_chain,
+            client_private_key=client_private_key,
+           )
+    except Exception as e:
+        logging.error(f"Failed to create Deephaven session: {e}")
+        raise
 
 @mcp_server.tool()
 def echo_tool(message: str) -> str:
@@ -60,40 +122,60 @@ def gnome_count_colorado() -> int:
     return count
 
 @mcp_server.tool()
-def pydeephaven_list_tables(server_url: str = "localhost", port: int = 10000) -> list:
+def pydeephaven_list_tables() -> list:
     """
     Connect to a Deephaven server using pydeephaven and return the list of table names in the session.
 
-    Args:
-        server_url (str): The URL of the Deephaven server.
-        port (int): The port of the Deephaven server.
+    Deephaven connection parameters are configured via the following environment variables:
+        - DH_MCP_HOST: Hostname or IP address of the Deephaven server (default: None)
+        - DH_MCP_PORT: Port number for the Deephaven server (default: None)
+        - DH_MCP_AUTH_TYPE: Authentication type (default: 'Anonymous')
+        - DH_MCP_AUTH_TOKEN: Authentication token (default: '')
+        - DH_MCP_NEVER_TIMEOUT: Whether the session should never timeout (default: True)
+        - DH_MCP_SESSION_TYPE: Session type, e.g., 'python' (default: 'python')
+        - DH_MCP_USE_TLS: Whether to use TLS/SSL (default: False)
+        - DH_MCP_TLS_ROOT_CERTS: Path to TLS root certificates (default: None)
+        - DH_MCP_CLIENT_CERT_CHAIN: Path to client certificate chain (default: None)
+        - DH_MCP_CLIENT_PRIVATE_KEY: Path to client private key (default: None)
+        - DH_MCP_CLIENT_OPTS: Additional client options (default: None)
+        - DH_MCP_EXTRA_HEADERS: Extra headers to include in the session (default: None)
+
     Returns:
         list: List of table names available in the session.
     """
-    import logging
-    from pydeephaven import Session
-    logging.info(f"pydeephaven_list_tables called with server_url: {server_url!r}, port: {port!r}")
+
     try:
-        with Session(host=server_url, port=port) as session:
-            logging.info(f"Session created successfully for host: {server_url}")
+        with _get_session() as session:
+            logging.info(f"Session created successfully for host: {session.host}")
             tables = list(session.tables)
             logging.info(f"Retrieved tables from session: {tables!r}")
-            logging.info(f"Session closed for host: {server_url}")
+            logging.info(f"Session closed for host: {session.host}")
             logging.info(f"pydeephaven_list_tables returning tables: {tables!r}")
             return tables
     except Exception as e:
         #TODO: this is returning with isError=False
-        logging.error(f"pydeephaven_list_tables failed for host {server_url}: {e!r}", exc_info=True)
+        logging.error(f"pydeephaven_list_tables failed for host: {e!r}", exc_info=True)
         return [f"Error: {e}"]
 
 @mcp_server.tool()
-def pydeephaven_table_schemas(server_url: str = "localhost", port: int = 10000) -> list:
+def pydeephaven_table_schemas() -> list:
     """
     Connect to a Deephaven server using pydeephaven and return the names and schemas of all tables in the session.
 
-    Args:
-        server_url (str): The URL of the Deephaven server.
-        port (int): The port of the Deephaven server.
+    Deephaven connection parameters are configured via the following environment variables:
+        - DH_MCP_HOST: Hostname or IP address of the Deephaven server (default: None)
+        - DH_MCP_PORT: Port number for the Deephaven server (default: None)
+        - DH_MCP_AUTH_TYPE: Authentication type (default: 'Anonymous')
+        - DH_MCP_AUTH_TOKEN: Authentication token (default: '')
+        - DH_MCP_NEVER_TIMEOUT: Whether the session should never timeout (default: True)
+        - DH_MCP_SESSION_TYPE: Session type, e.g., 'python' (default: 'python')
+        - DH_MCP_USE_TLS: Whether to use TLS/SSL (default: False)
+        - DH_MCP_TLS_ROOT_CERTS: Path to TLS root certificates (default: None)
+        - DH_MCP_CLIENT_CERT_CHAIN: Path to client certificate chain (default: None)
+        - DH_MCP_CLIENT_PRIVATE_KEY: Path to client private key (default: None)
+        - DH_MCP_CLIENT_OPTS: Additional client options (default: None)
+        - DH_MCP_EXTRA_HEADERS: Extra headers to include in the session (default: None)
+
     Returns:
         list: List of dicts with table name and schema (list of column name/type pairs).
     Example return value:
@@ -102,13 +184,11 @@ def pydeephaven_table_schemas(server_url: str = "localhost", port: int = 10000) 
             ...
         ]
     """
-    import logging
-    from pydeephaven import Session
-    logging.info(f"pydeephaven_table_schemas called with server_url: {server_url!r}, port: {port!r}")
+
     results = []
     try:
-        with Session(host=server_url, port=port) as session:
-            logging.info(f"Session created successfully for host: {server_url}")
+        with _get_session() as session:
+            logging.info(f"Session created successfully for host: {session.host}")
             for table in session.tables:
                 meta_table = session.open_table(table).meta_table.to_arrow()
                 print(meta_table)
@@ -119,5 +199,5 @@ def pydeephaven_table_schemas(server_url: str = "localhost", port: int = 10000) 
             logging.info(f"pydeephaven_table_schemas returning: {results!r}")
             return results
     except Exception as e:
-        logging.error(f"pydeephaven_table_schemas failed for host {server_url}: {e!r}", exc_info=True)
+        logging.error(f"pydeephaven_table_schemas failed for host: {e!r}", exc_info=True)
         return [f"Error: {e}"]

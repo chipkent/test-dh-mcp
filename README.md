@@ -145,44 +145,82 @@ You should see log output indicating the client is running and listing available
 
 You can connect Claude Desktop to your local stdio MCP server to use custom tools.
 
-1. Edit `~/Library/Application\ Support/Claude/claude_desktop_config.json`:
+1. Edit `~/Library/Application\ Support/Claude/claude_desktop_config.json` to add your MCP server. To configure the Deephaven connection for all tools, set the required `DH_MCP_*` environment variables in the `env` key. Example:
 
-    - Using `venv`:
+    - Using `venv` (with environment variables):
 
-    ```
+    ```json
     {
-        "mcpServers": {
-            "test-dh-mcp": {
-                "command": "/Users/chip/dev/test-dh-mcp/.venv/bin/python3",
-                "args": ["/Users/chip/dev/test-dh-mcp/src/mcp_server.py", "--transport", "stdio"]
-            }
+      "mcpServers": {
+        "test-dh-mcp": {
+          "command": "/Users/chip/dev/test-dh-mcp/.venv/bin/python3",
+          "args": ["/Users/chip/dev/test-dh-mcp/src/mcp_server.py", "--transport", "stdio"],
+          "env": {
+            "DH_MCP_HOST": "localhost",
+            "DH_MCP_PORT": "10000",
+            "DH_MCP_AUTH_TYPE": "Anonymous"
+          }
         }
+      }
     }
     ```
 
-    - Using `uv`:
+    - Using `uv` (with environment variables):
 
-    ```
+    ```json
     {
-        "mcpServers": {
-            "test-dh-mcp": {
-                "command": "uv",
-                "args": [
-                    "--directory",
-                    "/Users/chip/dev/test-dh-mcp/src",
-                    "run", 
-                    "mcp_server.py", 
-                    "--transport", 
-                    "stdio"
-                ]
-            }
+      "mcpServers": {
+        "test-dh-mcp": {
+          "command": "uv",
+          "args": [
+            "--directory",
+            "/Users/chip/dev/test-dh-mcp/src",
+            "run", 
+            "mcp_server.py", 
+            "--transport", 
+            "stdio"
+          ],
+          "env": {
+            "DH_MCP_HOST": "localhost",
+            "DH_MCP_PORT": "10000",
+            "DH_MCP_AUTH_TYPE": "Anonymous"
+          }
         }
+      }
     }
     ```
+
+> **Note:** All `DH_MCP_*` environment variables listed in the Deephaven Session Configuration section can be set here. These control the Deephaven session for every tool call.
     
 4. Restart Claude Desktop.
 5. Debugging logs can be found in `~/Library/Logs/Claude/`
 
+
+## Deephaven Session Configuration
+
+All Deephaven session configuration is now handled via environment variables. Tool functions no longer accept `server_url` or `port` arguments. Instead, set the following environment variables to control session behavior:
+
+- `DH_MCP_HOST`: Hostname or IP address of the Deephaven server (default: None)
+- `DH_MCP_PORT`: Port number for the Deephaven server (default: None)
+- `DH_MCP_AUTH_TYPE`: Authentication type (default: 'Anonymous')
+- `DH_MCP_AUTH_TOKEN`: Authentication token (default: '')
+- `DH_MCP_NEVER_TIMEOUT`: Whether the session should never timeout (default: True)
+- `DH_MCP_SESSION_TYPE`: Session type, e.g., 'python' (default: 'python')
+- `DH_MCP_USE_TLS`: Whether to use TLS/SSL (default: False)
+- `DH_MCP_TLS_ROOT_CERTS`: Path to TLS root certificates (default: None)
+- `DH_MCP_CLIENT_CERT_CHAIN`: Path to client certificate chain (default: None)
+- `DH_MCP_CLIENT_PRIVATE_KEY`: Path to client private key (default: None)
+- `DH_MCP_CLIENT_OPTS`: Additional client options (default: None)
+- `DH_MCP_EXTRA_HEADERS`: Extra headers to include in the session (default: None)
+
+Example (Unix shell):
+```sh
+export DH_MCP_HOST=localhost
+export DH_MCP_PORT=10000
+export DH_MCP_AUTH_TYPE=Anonymous
+```
+
+All tools in `dhmcp/__init__.py` will use these environment variables to configure the session.
 
 ## Registering Tools
 
