@@ -37,7 +37,7 @@ from mcp.server.fastmcp import FastMCP
 from pydeephaven import Session
 
 #TODO: add worker session caching
-#TODO: add a tool to reload the configuration
+#TODO: add a tool to reload / refresh the configuration / search for new servers
 
 # --- Configuration Loading ---
 
@@ -103,23 +103,29 @@ def _load_config() -> Dict[str, Any]:
     for key, worker_cfg in workers.items():
         if not isinstance(worker_cfg, dict):
             raise ValueError(f"Worker '{key}' in config is not a dictionary.")
+
         # Check for unknown fields
         for field in worker_cfg:
             if field not in _ALLOWED_WORKER_FIELDS:
                 raise ValueError(f"Unknown field '{field}' in worker '{key}' config.")
+
         # Check for required fields
         for req in _REQUIRED_FIELDS:
             if req not in worker_cfg:
                 raise ValueError(f"Missing required field '{req}' in worker '{key}' config.")
+
         # Check types
         for field, expected_type in _ALLOWED_WORKER_FIELDS.items():
             if field in worker_cfg:
                 value = worker_cfg[field]
                 if not isinstance(value, expected_type):
                     raise ValueError(f"Field '{field}' in worker '{key}' config should be of type {expected_type}, got {type(value)}.")
+
     default_worker = config.get("default_worker")
+
     if default_worker is not None and default_worker not in workers:
         raise ValueError(f"default_worker '{default_worker}' is not a key in the workers dictionary.")
+
     _CONFIG_CACHE = config
     return _CONFIG_CACHE
 
