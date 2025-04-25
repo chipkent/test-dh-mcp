@@ -145,9 +145,9 @@ You should see log output indicating the client is running and listing available
 
 You can connect Claude Desktop to your local stdio MCP server to use custom tools.
 
-1. Edit `~/Library/Application\ Support/Claude/claude_desktop_config.json` to add your MCP server. To configure the Deephaven connection for all tools, set the required `DH_MCP_*` environment variables in the `env` key. Example:
+1. Edit `~/Library/Application\ Support/Claude/claude_desktop_config.json` to add your MCP server. Deephaven worker configuration is now handled entirely via a JSON config file, and the path must be specified using the required `DH_MCP_CONFIG_FILE` environment variable. There is no default path—this environment variable must always be set.
 
-    - Using `venv` (with environment variables):
+    Example Claude Desktop config (using venv):
 
     ```json
     {
@@ -156,16 +156,14 @@ You can connect Claude Desktop to your local stdio MCP server to use custom tool
           "command": "/Users/chip/dev/test-dh-mcp/.venv/bin/python3",
           "args": ["/Users/chip/dev/test-dh-mcp/src/mcp_server.py", "--transport", "stdio"],
           "env": {
-            "DH_MCP_HOST": "localhost",
-            "DH_MCP_PORT": "10000",
-            "DH_MCP_AUTH_TYPE": "Anonymous"
+            "DH_MCP_CONFIG_FILE": "/Users/chip/dev/test-dh-mcp/deephaven_workers.json"
           }
         }
       }
     }
     ```
 
-    - Using `uv` (with environment variables):
+    Or with `uv`:
 
     ```json
     {
@@ -175,12 +173,31 @@ You can connect Claude Desktop to your local stdio MCP server to use custom tool
           "args": [
             "--directory",
             "/Users/chip/dev/test-dh-mcp/src",
+            "run",
+            "mcp_server.py",
+            "--transport",
+            "stdio"
+          ],
+          "env": {
+            "DH_MCP_CONFIG_FILE": "/Users/chip/dev/test-dh-mcp/deephaven_workers.json"
+          }
+        }
+      }
+    }
+    ```
+
+    > Note: Always set `DH_MCP_CONFIG_FILE` in the `env` section if your config is not named `deephaven_workers.json` in the project root, or if you want to be explicit about the config location.
+
+          "args": [
+            "--directory",
+            "/Users/chip/dev/test-dh-mcp/src",
             "run", 
             "mcp_server.py", 
             "--transport", 
             "stdio"
           ],
           "env": {
+            "DH_MCP_SERVER_NAME": "test-dh-mcp",
             "DH_MCP_HOST": "localhost",
             "DH_MCP_PORT": "10000",
             "DH_MCP_AUTH_TYPE": "Anonymous"
@@ -196,31 +213,65 @@ You can connect Claude Desktop to your local stdio MCP server to use custom tool
 5. Debugging logs can be found in `~/Library/Logs/Claude/`
 
 
-## Deephaven Session Configuration
+## Deephaven Worker Configuration
 
-All Deephaven session configuration is now handled via environment variables. Tool functions no longer accept `server_url` or `port` arguments. Instead, set the following environment variables to control session behavior:
+All Deephaven worker configuration is now handled via a JSON file. The path to this file must be specified using the `DH_MCP_CONFIG_FILE` environment variable. There is no default path—this variable is required.
 
-- `DH_MCP_HOST`: Hostname or IP address of the Deephaven server (default: None)
-- `DH_MCP_PORT`: Port number for the Deephaven server (default: None)
-- `DH_MCP_AUTH_TYPE`: Authentication type (default: 'Anonymous')
-- `DH_MCP_AUTH_TOKEN`: Authentication token (default: '')
-- `DH_MCP_NEVER_TIMEOUT`: Whether the session should never timeout (default: True)
-- `DH_MCP_SESSION_TYPE`: Session type, e.g., 'python' (default: 'python')
-- `DH_MCP_USE_TLS`: Whether to use TLS/SSL (default: False)
-- `DH_MCP_TLS_ROOT_CERTS`: Path to TLS root certificates (default: None)
-- `DH_MCP_CLIENT_CERT_CHAIN`: Path to client certificate chain (default: None)
-- `DH_MCP_CLIENT_PRIVATE_KEY`: Path to client private key (default: None)
-- `DH_MCP_CLIENT_OPTS`: Additional client options (default: None)
-- `DH_MCP_EXTRA_HEADERS`: Extra headers to include in the session (default: None)
+The config file should look like this:
 
-Example (Unix shell):
-```sh
-export DH_MCP_HOST=localhost
-export DH_MCP_PORT=10000
-export DH_MCP_AUTH_TYPE=Anonymous
+```json
+{
+  "workers": {
+    "worker1": {
+      "host": "localhost",
+      "port": 10000,
+      "auth_type": "Anonymous",
+      "auth_token": "",
+      "never_timeout": true
+    },
+    "worker2": {
+      "host": "otherhost",
+      "port": 10001,
+      "auth_type": "Bearer",
+      "auth_token": "YOUR_TOKEN"
+    }
+  },
+  "default_worker": "worker1"
+}
 ```
 
-All tools in `dhmcp/__init__.py` will use these environment variables to configure the session.
+- The `workers` object maps worker names to their connection settings.
+- The `default_worker` is optional and used if a worker name is not specified in a tool call. If set, it must match one of the keys in the `workers` dictionary.
+
+> **Important:** The `DH_MCP_CONFIG_FILE` environment variable must always be set to the path of your worker config file. There is no default config path.
+
+**Supported fields for each worker:**
+
+| Field               | Type           | Description                                                                 |
+|---------------------|----------------|-----------------------------------------------------------------------------|
+| `host`              | `str`          | Deephaven server hostname or IP (optional)                                  |
+| `port`              | `int`          | Deephaven server port (optional)                                            |
+| `auth_type`         | `str`          | Authentication type (e.g., `Anonymous`, `Bearer`) (optional)                |
+| `auth_token`        | `str`          | Authentication token (optional)                                             |
+| `never_timeout`     | `bool`         | Whether the session should never timeout (optional, default: True)          |
+| `session_type`      | `str`          | Session type, e.g., `python` (optional, default: 'python')                  |
+| `use_tls`           | `bool`         | Whether to use TLS/SSL (optional, default: False)                           |
+| `tls_root_certs`    | `str` or `null`| Path to TLS root certificates (optional)                                    |
+| `client_cert_chain` | `str` or `null`| Path to client certificate chain (optional)                                 |
+| `client_private_key`| `str` or `null`| Path to client private key (optional)                                       |
+
+> Note: You may define workers with only a subset of these fields, depending on your use case and authentication method. No fields are strictly required; defaults will be used where possible.
+
+### Tool Usage
+
+- `echo_tool(message: str) -> str`: Echoes back the input message, prefixed with 'Echo:'.
+- `gnome_count_colorado() -> int`: Returns the current number of gnomes in Colorado (demo tool).
+- `deephaven_worker_names() -> list[str]`: Returns all configured Deephaven worker names from the config file.
+- `deephaven_default_worker() -> str`: Returns the name of the default worker as set in config (or None if not set).
+- `deephaven_list_tables(worker_name: str = None) -> list`: Lists table names for the specified worker. If `worker_name` is not provided, uses the default_worker from config.
+- `deephaven_table_schemas(worker_name: str = None) -> list`: Returns schemas for all tables in the specified worker. If `worker_name` is not provided, uses the default_worker from config.
+
+See the example config file above for how to set up multiple workers.
 
 ## Registering Tools
 

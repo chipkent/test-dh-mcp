@@ -1,0 +1,13 @@
+{
+  "workers": {
+    "worker1": {
+      "host": "localhost",
+      "port": 10000
+    },
+    "worker2": {
+      "host": "localhost",
+      "port": 10001
+    }
+  },
+  "default_worker": "worker1"
+}
