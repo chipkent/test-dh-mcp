@@ -30,190 +30,13 @@ See the project README for more information on configuration, running the server
 """
 
 import logging
-import os
-import json
-from typing import Optional, Dict, Any
+from typing import Optional
 from mcp.server.fastmcp import FastMCP
-from pydeephaven import Session
-
-#TODO: add worker session caching
-#TODO: add a tool to reload / refresh the configuration / search for new servers
-
-# --- Configuration Loading ---
-
-_CONFIG_CACHE: Optional[Dict[str, Any]] = None
-
-CONFIG_ENV_VAR = "DH_MCP_CONFIG_FILE"
-
-
-def _load_config() -> Dict[str, Any]:
-    """
-    Load the Deephaven worker configuration from the path specified by the DH_MCP_CONFIG_FILE environment variable.
-    This environment variable is required. If it is not set, an error is raised.
-    """
-    global _CONFIG_CACHE
-
-    if _CONFIG_CACHE is not None:
-        return _CONFIG_CACHE
-
-    config_path = os.environ.get(CONFIG_ENV_VAR)
-
-    if not config_path:
-        raise RuntimeError(f"Environment variable {CONFIG_ENV_VAR} must be set to the path of the Deephaven worker config file.")
-
-    try:
-        with open(config_path, "r") as f:
-            config = json.load(f)
-    except Exception as e:
-        logging.error(f"Failed to load Deephaven config from {config_path}: {e}")
-        raise
-
-    # --- Validation ---
-    if not isinstance(config, dict):
-        raise ValueError(f"Config file {config_path} is not a JSON object.")
-
-    workers = config.get("workers")
-
-    if not isinstance(workers, dict) or not workers:
-        raise ValueError(f"Config file {config_path} must contain a non-empty 'workers' dictionary.")
-
-    # Validate that default_worker, if present, is a key in workers
-    default_worker = config.get("default_worker")
-
-    if default_worker is not None and default_worker not in workers:
-        raise ValueError(f"Config file {config_path}: default_worker '{default_worker}' is not a key in the workers dictionary.")
-
-    # Allowed fields and their types
-    _ALLOWED_WORKER_FIELDS = {
-        "host": str,
-        "port": int,
-        "auth_type": str,
-        "auth_token": str,
-        "never_timeout": bool,
-        "session_type": str,
-        "use_tls": bool,
-        "tls_root_certs": (str, type(None)),
-        "client_cert_chain": (str, type(None)),
-        "client_private_key": (str, type(None)),
-    }
-
-    # No required fields. All worker fields are optional.
-    _REQUIRED_FIELDS = []
-
-    for key, worker_cfg in workers.items():
-        if not isinstance(worker_cfg, dict):
-            raise ValueError(f"Worker '{key}' in config is not a dictionary.")
-
-        # Check for unknown fields
-        for field in worker_cfg:
-            if field not in _ALLOWED_WORKER_FIELDS:
-                raise ValueError(f"Unknown field '{field}' in worker '{key}' config.")
-
-        # Check for required fields
-        for req in _REQUIRED_FIELDS:
-            if req not in worker_cfg:
-                raise ValueError(f"Missing required field '{req}' in worker '{key}' config.")
-
-        # Check types
-        for field, expected_type in _ALLOWED_WORKER_FIELDS.items():
-            if field in worker_cfg:
-                value = worker_cfg[field]
-                if not isinstance(value, expected_type):
-                    raise ValueError(f"Field '{field}' in worker '{key}' config should be of type {expected_type}, got {type(value)}.")
-
-    default_worker = config.get("default_worker")
-
-    if default_worker is not None and default_worker not in workers:
-        raise ValueError(f"default_worker '{default_worker}' is not a key in the workers dictionary.")
-
-    _CONFIG_CACHE = config
-    return _CONFIG_CACHE
-
-
-def _get_worker_config(worker_name: str = None) -> Dict[str, Any]:
-    """
-    Retrieve the configuration for the specified worker. If worker_name is None, uses the default_worker from config.
-    Raises an error if neither is available or if the worker is not found.
-    """
-    config = _load_config()
-    workers = config.get("workers", {})
-
-    if not workers or not isinstance(workers, dict):
-        raise RuntimeError("No workers defined in Deephaven config file, or workers is not a dictionary.")
-
-    # Determine worker name
-    name = worker_name or config.get("default_worker")
-
-    if not name:
-        raise RuntimeError("No worker name specified (via argument or default_worker in config).")
-
-    if name not in workers:
-        raise RuntimeError(f"Worker '{name}' not found in config.")
-
-    return workers[name]
+from ._config import clear_config_cache, _CONFIG_CACHE_LOCK
+from ._sessions import get_session, clear_session_cache, _SESSION_CACHE_LOCK
 
 
 mcp_server = FastMCP("test-dh-mcp")
-
-
-def _get_session(worker_name: str = None) -> Session:
-    """
-    Create and return a configured Deephaven Session, using JSON config.
-    If worker_name is None, uses the default_worker from config.
-
-    Args:
-        worker_name (str, optional): Name of the Deephaven worker to use. If not provided, uses default_worker from config.
-    Returns:
-        Session: A configured Deephaven Session instance.
-    """
-    cfg = _get_worker_config(worker_name)
-    host = cfg.get("host", None)
-    port = cfg.get("port", None)
-    auth_type = cfg.get("auth_type", "Anonymous")
-    auth_token = cfg.get("auth_token", "")
-    never_timeout = cfg.get("never_timeout", True)
-    session_type = cfg.get("session_type", "python")
-    use_tls = cfg.get("use_tls", False)
-    tls_root_certs = cfg.get("tls_root_certs", None)
-    client_cert_chain = cfg.get("client_cert_chain", None)
-    client_private_key = cfg.get("client_private_key", None)
-
-    if not host or not port:
-        raise RuntimeError(f"Worker config must specify 'host' and 'port'. Got: {cfg}")
-
-    logging.info(
-        "Creating Deephaven session: host=%r, port=%r, auth_type=%r, auth_token=%r, never_timeout=%r, session_type=%r, use_tls=%r, tls_root_certs=%s, client_cert_chain=%s, client_private_key=%s",
-        host, port, auth_type, "REDACTED", never_timeout, session_type, use_tls,
-        tls_root_certs, client_cert_chain, client_private_key,
-    )
-
-    # Load cert/key files as bytes if paths are provided
-    def _load_bytes(path):
-        if path is None:
-            return None
-        try:
-            with open(path, "rb") as f:
-                return f.read()
-        except Exception as e:
-            logging.error(f"Failed to load file '{path}': {e}")
-            raise
-
-    try:
-        return Session(
-            host=host,
-            port=port,
-            auth_type=auth_type,
-            auth_token=auth_token,
-            never_timeout=never_timeout,
-            session_type=session_type,
-            use_tls=use_tls,
-            tls_root_certs=_load_bytes(tls_root_certs) if tls_root_certs else None,
-            client_cert_chain=_load_bytes(client_cert_chain) if client_cert_chain else None,
-            client_private_key=_load_bytes(client_private_key) if client_private_key else None,
-        )
-    except Exception as e:
-        logging.error(f"Failed to create Deephaven session: {e}")
-        raise
 
 
 @mcp_server.tool()
@@ -246,50 +69,71 @@ def gnome_count_colorado() -> int:
 
 
 @mcp_server.tool()
-def deephaven_default_worker() -> str:
+def deephaven_refresh() -> None:
     """
-    Return the name of the default Deephaven worker from the config file to use when a worker name is not specified.
+    Reloads and refreshes the Deephaven worker configuration and session cache.
+    This allows new workers to be added or existing workers to be removed.
+    It also reopens all sessions to the workers to handle any expired or disconnected sessions.
+    """
+    with _CONFIG_CACHE_LOCK:
+        with _SESSION_CACHE_LOCK:
+            clear_config_cache()
+            clear_session_cache()
+    logging.info("Deephaven worker configuration and session cache reloaded via MCP tool.")
+
+
+@mcp_server.tool()
+def deephaven_default_worker() -> Optional[str]:
+    """
+    MCP Tool: Get the default Deephaven worker name.
+
+    Returns the name of the default Deephaven worker as specified in the configuration file.
+    This is used when a worker name is not explicitly provided to other tools.
 
     Returns:
-        str: The default worker name
+        str: The default worker name as defined in the config file.
     """
-    config = _load_config()
-    return config.get("default_worker")
-
+    return _config.deephaven_default_worker()
 
 @mcp_server.tool()
 def deephaven_worker_names() -> list[str]:
     """
-    Return the names of all Deephaven workers defined in the config file.
+    MCP Tool: List all Deephaven worker names.
+
+    Retrieves the names of all Deephaven workers defined in the configuration file.
+    Useful for populating UI dropdowns or validating worker names.
 
     Returns:
-        list[str]: List of Deephaven worker names.
+        list[str]: List of all Deephaven worker names from the config file.
     """
-    config = _load_config()
-    workers = config.get("workers", {})
-    return list(workers.keys())
-
+    return _config.deephaven_worker_names()
 
 @mcp_server.tool()
 def deephaven_list_tables(worker_name: Optional[str] = None) -> list:
     """
-    Returns a list of table names available in the specified Deephaven worker.
-    If no worker_name is provided, uses the default worker from config.
+    MCP Tool: List tables in a Deephaven worker.
+
+    Returns a list of table names available in the specified Deephaven worker. If no
+    worker_name is provided, the default worker from the configuration is used.
 
     Args:
         worker_name (str, optional): Name of the Deephaven worker to use. If not provided, uses default_worker from config.
+
     Returns:
         list: List of table names available in the Deephaven worker.
+
+    Raises:
+        Exception: If the session cannot be created or tables cannot be retrieved. Errors are logged.
     """
     try:
-        with _get_session(worker_name) as session:
-            logging.info(f"deephaven_list_tables: Session created successfully for worker: {worker_name or deephaven_default_worker()}")
-            tables = list(session.tables)
-            logging.info(f"deephaven_list_tables: Retrieved tables from session: {tables!r}")
-            logging.info(f"deephaven_list_tables: returning tables: {tables!r}")
-            return tables
+        session = get_session(worker_name)
+        logging.info(f"deephaven_list_tables: Session created successfully for worker: {worker_name or _config.deephaven_default_worker()}")
+        tables = list(session.tables)
+        logging.info(f"deephaven_list_tables: Retrieved tables from session: {tables!r}")
+        logging.info(f"deephaven_list_tables: returning tables: {tables!r}")
+        return tables
     except Exception as e:
-        logging.error(f"deephaven_list_tables failed for worker: {worker_name or deephaven_default_worker()}, error: {e!r}", exc_info=True)
+        logging.error(f"deephaven_list_tables failed for worker: {worker_name or _config.deephaven_default_worker()}, error: {e!r}", exc_info=True)
         return [f"Error: {e}"]
 
 
@@ -311,18 +155,18 @@ def deephaven_table_schemas(worker_name: Optional[str] = None) -> list:
     """
     results = []
     try:
-        with _get_session(worker_name) as session:
-            logging.info(f"deephaven_table_schemas: Session created successfully for worker: {worker_name or deephaven_default_worker()}")
+        session = get_session(worker_name)
+        logging.info(f"deephaven_table_schemas: Session created successfully for worker: {worker_name or _config.deephaven_default_worker()}")
 
-            for table in session.tables:
-                meta_table = session.open_table(table).meta_table.to_arrow()
-                # meta_table is a pyarrow.Table with columns: 'Name', 'DataType', etc.
-                schema = {row["Name"]: row["DataType"] for row in meta_table.to_pylist()}
-                results.append({"table": table, "schema": schema})
+        for table in session.tables:
+            meta_table = session.open_table(table).meta_table.to_arrow()
+            # meta_table is a pyarrow.Table with columns: 'Name', 'DataType', etc.
+            schema = {row["Name"]: row["DataType"] for row in meta_table.to_pylist()}
+            results.append({"table": table, "schema": schema})
 
-            logging.info(f"deephaven_table_schemas: returning: {results!r}")
-            return results
+        logging.info(f"deephaven_table_schemas: returning: {results!r}")
+        return results
     except Exception as e:
-        logging.error(f"deephaven_table_schemas: failed for worker: {worker_name or deephaven_default_worker()}, error: {e!r}", exc_info=True)
+        logging.error(f"deephaven_table_schemas: failed for worker: {worker_name or _config.deephaven_default_worker()}, error: {e!r}", exc_info=True)
         return [f"Error: {e}"]
 
