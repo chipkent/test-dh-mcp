@@ -109,9 +109,9 @@ def deephaven_worker_names() -> list[str]:
     return _config.deephaven_worker_names()
 
 @mcp_server.tool()
-def deephaven_list_tables(worker_name: Optional[str] = None) -> list:
+def deephaven_list_table_names(worker_name: Optional[str] = None) -> list:
     """
-    MCP Tool: List tables in a Deephaven worker.
+    MCP Tool: List table names in a Deephaven worker.
 
     Returns a list of table names available in the specified Deephaven worker. If no
     worker_name is provided, the default worker from the configuration is used.
@@ -140,7 +140,7 @@ def deephaven_list_tables(worker_name: Optional[str] = None) -> list:
 @mcp_server.tool()
 def deephaven_table_schemas(worker_name: Optional[str] = None, table_names: Optional[list[str]] = None) -> list:
     """
-    Get the schemas for one or more Deephaven tables.
+    MCP Tool: Get the schemas for one or more Deephaven tables.
 
     Returns the names and schemas of the specified tables in the given Deephaven worker. If no table_names list is provided,
     returns schemas for all tables in the worker. If no worker_name is provided, uses the default worker from config.
