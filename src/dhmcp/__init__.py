@@ -182,14 +182,21 @@ def _get_session(worker_name: str = None) -> Session:
         raise RuntimeError(f"Worker config must specify 'host' and 'port'. Got: {cfg}")
 
     logging.info(
-        "Creating Deephaven session: host=%r, port=%r, auth_type=%r, never_timeout=%r, session_type=%r, use_tls=%r, tls_root_certs=%s, client_cert_chain=%s, client_private_key=%s",
-        host, port, auth_type, never_timeout, session_type, use_tls,
-        "REDACTED" if tls_root_certs else None,
-        "REDACTED" if client_cert_chain else None,
-        "REDACTED" if client_private_key else None,
+        "Creating Deephaven session: host=%r, port=%r, auth_type=%r, auth_token=%r, never_timeout=%r, session_type=%r, use_tls=%r, tls_root_certs=%s, client_cert_chain=%s, client_private_key=%s",
+        host, port, auth_type, "REDACTED", never_timeout, session_type, use_tls,
+        tls_root_certs, client_cert_chain, client_private_key,
     )
-    if auth_token:
-        logging.info("Auth token: REDACTED")
+
+    # Load cert/key files as bytes if paths are provided
+    def _load_bytes(path):
+        if path is None:
+            return None
+        try:
+            with open(path, "rb") as f:
+                return f.read()
+        except Exception as e:
+            logging.error(f"Failed to load file '{path}': {e}")
+            raise
 
     try:
         return Session(
@@ -200,9 +207,9 @@ def _get_session(worker_name: str = None) -> Session:
             never_timeout=never_timeout,
             session_type=session_type,
             use_tls=use_tls,
-            tls_root_certs=tls_root_certs,
-            client_cert_chain=client_cert_chain,
-            client_private_key=client_private_key,
+            tls_root_certs=_load_bytes(tls_root_certs) if tls_root_certs else None,
+            client_cert_chain=_load_bytes(client_cert_chain) if client_cert_chain else None,
+            client_private_key=_load_bytes(client_private_key) if client_private_key else None,
         )
     except Exception as e:
         logging.error(f"Failed to create Deephaven session: {e}")
