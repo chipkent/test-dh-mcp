@@ -69,17 +69,24 @@ def load_config() -> Dict[str, Any]:
     global _CONFIG_CACHE
 
     if _CONFIG_CACHE is not None:
+        logging.debug("Using cached Deephaven worker configuration.")
         return _CONFIG_CACHE
 
+    logging.info("Loading Deephaven worker configuration...")
     config_path = os.environ.get(CONFIG_ENV_VAR)
     if not config_path:
+        logging.error(f"Environment variable {CONFIG_ENV_VAR} must be set to the path of the Deephaven worker config file.")
         raise RuntimeError(f"Environment variable {CONFIG_ENV_VAR} must be set to the path of the Deephaven worker config file.")
 
+    logging.info(f"Loading config from: {config_path}")
     try:
         with open(config_path, "r") as f:
             config = json.load(f)
     except Exception as e:
+        logging.error(f"Failed to load Deephaven config from {config_path}: {e}")
         raise RuntimeError(f"Failed to load config file {config_path}: {e}")
+
+    logging.info("Successfully loaded Deephaven worker configuration.")
 
     if not isinstance(config, dict):
         raise ValueError(f"Config file {config_path} is not a JSON object (dict).")
@@ -123,6 +130,8 @@ def load_config() -> Dict[str, Any]:
                     raise ValueError(
                         f"Field '{field}' in worker '{key}' config should be of type {expected_type}, got {type(value)}."
                     )
+
+    logging.info("Successfully loaded Deephaven worker configuration.")
 
     _CONFIG_CACHE = config
     return _CONFIG_CACHE
