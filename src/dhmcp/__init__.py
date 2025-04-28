@@ -109,9 +109,9 @@ def deephaven_worker_names() -> list[str]:
     return _config.deephaven_worker_names()
 
 @mcp_server.tool()
-def deephaven_list_tables(worker_name: Optional[str] = None) -> list:
+def deephaven_list_table_names(worker_name: Optional[str] = None) -> list:
     """
-    MCP Tool: List tables in a Deephaven worker.
+    MCP Tool: List table names in a Deephaven worker.
 
     Returns a list of table names available in the specified Deephaven worker. If no
     worker_name is provided, the default worker from the configuration is used.
@@ -138,13 +138,16 @@ def deephaven_list_tables(worker_name: Optional[str] = None) -> list:
 
 
 @mcp_server.tool()
-def deephaven_table_schemas(worker_name: Optional[str] = None) -> list:
+def deephaven_table_schemas(worker_name: Optional[str] = None, table_names: Optional[list[str]] = None) -> list:
     """
-    Returns the names and schemas of all tables in the specified Deephaven worker.
-    If no worker_name is provided, uses the default worker from config.
+    MCP Tool: Get the schemas for one or more Deephaven tables.
+
+    Returns the names and schemas of the specified tables in the given Deephaven worker. If no table_names list is provided,
+    returns schemas for all tables in the worker. If no worker_name is provided, uses the default worker from config.
 
     Args:
         worker_name (str, optional): Name of the Deephaven worker to use. If not provided, uses default_worker from config.
+        table_names (list[str], optional): List of table names to get schemas for. If not provided, gets schemas for all tables.
     Returns:
         list: List of dicts with table name and schema (list of column name/type pairs).
     Example return value:
@@ -158,12 +161,25 @@ def deephaven_table_schemas(worker_name: Optional[str] = None) -> list:
         session = get_session(worker_name)
         logging.info(f"deephaven_table_schemas: Session created successfully for worker: {worker_name or _config.deephaven_default_worker()}")
 
-        for table in session.tables:
-            meta_table = session.open_table(table).meta_table.to_arrow()
-            # meta_table is a pyarrow.Table with columns: 'Name', 'DataType', etc.
-            schema = {row["Name"]: row["DataType"] for row in meta_table.to_pylist()}
-            results.append({"table": table, "schema": schema})
+        if table_names is not None:
+            selected_table_names = table_names
+            logging.info(f"deephaven_table_schemas: Fetching schemas for user-provided tables: {selected_table_names!r}")
+        else:
+            selected_table_names = list(session.tables)
+            logging.info(f"deephaven_table_schemas: Fetching schemas for all tables in worker (default): {selected_table_names!r}")
 
+        for table_name in selected_table_names:
+            try:
+                meta_table = session.open_table(table_name).meta_table.to_arrow()
+                # meta_table is a pyarrow.Table with columns: 'Name', 'DataType', etc.
+                schema = [
+                    {"name": row["Name"], "type": row["DataType"]}
+                    for row in meta_table.to_pylist()
+                ]
+                results.append({"table": table_name, "schema": schema})
+            except Exception as table_exc:
+                logging.error(f"deephaven_table_schemas: failed to get schema for table '{table_name}': {table_exc!r}", exc_info=True)
+                results.append({"table": table_name, "error": str(table_exc)})
         logging.info(f"deephaven_table_schemas: returning: {results!r}")
         return results
     except Exception as e:
