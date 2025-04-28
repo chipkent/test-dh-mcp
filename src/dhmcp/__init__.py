@@ -32,8 +32,8 @@ See the project README for more information on configuration, running the server
 import logging
 from typing import Optional
 from mcp.server.fastmcp import FastMCP
-from ._config import deephaven_worker_names, deephaven_default_worker
-from ._sessions import get_session
+from ._config import get_worker_config, deephaven_worker_names, deephaven_default_worker, clear_config_cache, _CONFIG_CACHE_LOCK
+from ._sessions import get_session, clear_session_cache, _SESSION_CACHE_LOCK
 
 #TODO: add a tool to reload / refresh the configuration / search for new servers
 
@@ -70,35 +70,61 @@ def gnome_count_colorado() -> int:
 
 
 @mcp_server.tool()
+def deephaven_refresh() -> None:
+    """
+    Reloads and refreshes the Deephaven worker configuration and session cache.
+    This allows new workers to be added or existing workers to be removed.
+    It also reopens all sessions to the workers to handle any expired or disconnected sessions.
+    """
+    with _CONFIG_CACHE_LOCK:
+        with _SESSION_CACHE_LOCK:
+            clear_config_cache()
+            clear_session_cache()
+    logging.info("Deephaven worker configuration and session cache reloaded via MCP tool.")
+
+
+@mcp_server.tool()
 def deephaven_default_worker() -> str:
     """
-    Return the name of the default Deephaven worker from the config file to use when a worker name is not specified.
+    MCP Tool: Get the default Deephaven worker name.
+
+    Returns the name of the default Deephaven worker as specified in the configuration file.
+    This is used when a worker name is not explicitly provided to other tools.
 
     Returns:
-        str: The default worker name
+        str: The default worker name as defined in the config file.
     """
     return deephaven_default_worker()
 
 @mcp_server.tool()
 def deephaven_worker_names() -> list[str]:
     """
-    Return the names of all Deephaven workers defined in the config file.
+    MCP Tool: List all Deephaven worker names.
+
+    Retrieves the names of all Deephaven workers defined in the configuration file.
+    Useful for populating UI dropdowns or validating worker names.
 
     Returns:
-        list[str]: List of Deephaven worker names.
+        list[str]: List of all Deephaven worker names from the config file.
     """
     return deephaven_worker_names()
 
 @mcp_server.tool()
 def deephaven_list_tables(worker_name: Optional[str] = None) -> list:
     """
-    Returns a list of table names available in the specified Deephaven worker.
-    If no worker_name is provided, uses the default worker from config.
+    MCP Tool: List tables in a Deephaven worker.
+
+    Returns a list of table names available in the specified Deephaven worker. If no
+    worker_name is provided, the default worker from the configuration is used.
 
     Args:
         worker_name (str, optional): Name of the Deephaven worker to use. If not provided, uses default_worker from config.
+
     Returns:
         list: List of table names available in the Deephaven worker.
+
+    Raises:
+        Exception: If the session cannot be created or tables cannot be retrieved. Errors are logged.
     """
     try:
         session = get_session(worker_name)

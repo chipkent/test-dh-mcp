@@ -1,30 +1,63 @@
 """
 Session management for Deephaven workers.
 
-This module provides thread-safe caching and creation of Deephaven Session objects
-based on validated configuration from _config.py. It ensures that sessions are reused
-when possible, and only recreated if the previous session is dead or invalid.
+This module provides thread-safe creation, caching, and lifecycle management of Deephaven Session objects.
+Sessions are configured using validated worker configuration from _config.py. Session reuse is automatic:
+if a cached session is alive, it is returned; otherwise, a new session is created and cached.
 
 Features:
-    - Thread-safe session cache keyed by worker name.
-    - Automatic session reuse and liveness checking.
-    - Loading of certificate files for secure connections.
-    - Designed for use by other modules and tools in the dhmcp package.
+    - Thread-safe, reentrant session cache keyed by worker name (or default).
+    - Automatic session reuse, liveness checking, and resource cleanup.
+    - Secure loading of certificate files for TLS connections.
+    - Tools for cache clearing and atomic reloads.
+    - Designed for use by other dhmcp modules and MCP tools.
 """
 
 from typing import Optional
 from pydeephaven import Session
-from ._config import get_worker_config
 import logging
+import threading
+from ._config import get_worker_config
 
-#TODO: add a tool to reload / refresh the configuration / search for new servers
 
 _SESSION_CACHE = {}
-_SESSION_CACHE_LOCK = __import__('threading').Lock()
+_SESSION_CACHE_LOCK = threading.RLock()
 """
-dict: Module-level cache for Deephaven sessions, keyed by worker name (or '__default__').
-threading.Lock: Ensures thread-safe access to the session cache.
+_SESSION_CACHE (dict): Module-level cache for Deephaven sessions, keyed by worker name (or '__default__').
+_SESSION_CACHE_LOCK (threading.RLock): Ensures thread-safe, reentrant access to the session cache.
 """
+
+def clear_session_cache() -> None:
+    """
+    Atomically clear the Deephaven session cache and close all alive sessions.
+
+    For each cached session, if it is alive, attempts to close it. All exceptions are logged
+    and do not prevent other sessions from being closed. After all sessions are processed,
+    the cache is emptied. This function is thread-safe and acquires the session cache lock.
+    """
+    logging.info("Clearing Deephaven session cache...")
+    
+    def _close_session_if_alive(worker_key, session):
+        """
+        Close the session if it is alive, logging the result.
+
+        Args:
+            worker_key (str): The cache key for the worker.
+            session (Session): The Deephaven session instance.
+        """
+        try:
+            if hasattr(session, "is_alive") and session.is_alive():
+                session.close()
+                logging.info(f"Closed alive Deephaven session for worker: {worker_key}")
+        except Exception as exc:
+            logging.warning(f"Failed to close session for worker {worker_key}: {exc}")
+
+    with _SESSION_CACHE_LOCK:
+        # Iterate over a copy to avoid mutation during iteration
+        for worker_key, session in list(_SESSION_CACHE.items()):
+            _close_session_if_alive(worker_key, session)
+        _SESSION_CACHE.clear()
+        logging.info("Session cache cleared.")
 
 def get_session(worker_name: Optional[str] = None) -> Session:
     """
@@ -32,7 +65,7 @@ def get_session(worker_name: Optional[str] = None) -> Session:
 
     If a session for the worker exists in the cache and is alive, it is reused.
     Otherwise, a new session is created, cached, and returned. All access to the
-    session cache is thread-safe.
+    session cache is thread-safe and reentrant.
 
     Args:
         worker_name (str, optional): Name of the Deephaven worker to use. If None,
