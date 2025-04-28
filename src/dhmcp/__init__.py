@@ -83,7 +83,7 @@ def deephaven_refresh() -> None:
 
 
 @mcp_server.tool()
-def deephaven_default_worker() -> str:
+def deephaven_default_worker() -> Optional[str]:
     """
     MCP Tool: Get the default Deephaven worker name.
 
@@ -93,7 +93,7 @@ def deephaven_default_worker() -> str:
     Returns:
         str: The default worker name as defined in the config file.
     """
-    return deephaven_default_worker()
+    return _config.deephaven_default_worker()
 
 @mcp_server.tool()
 def deephaven_worker_names() -> list[str]:
@@ -106,7 +106,7 @@ def deephaven_worker_names() -> list[str]:
     Returns:
         list[str]: List of all Deephaven worker names from the config file.
     """
-    return deephaven_worker_names()
+    return _config.deephaven_worker_names()
 
 @mcp_server.tool()
 def deephaven_list_tables(worker_name: Optional[str] = None) -> list:
