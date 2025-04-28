@@ -32,7 +32,7 @@ See the project README for more information on configuration, running the server
 import logging
 from typing import Optional
 from mcp.server.fastmcp import FastMCP
-from ._config import get_worker_config, deephaven_worker_names, deephaven_default_worker, clear_config_cache, _CONFIG_CACHE_LOCK
+from ._config import clear_config_cache, _CONFIG_CACHE_LOCK
 from ._sessions import get_session, clear_session_cache, _SESSION_CACHE_LOCK
 
 
@@ -127,13 +127,13 @@ def deephaven_list_tables(worker_name: Optional[str] = None) -> list:
     """
     try:
         session = get_session(worker_name)
-        logging.info(f"deephaven_list_tables: Session created successfully for worker: {worker_name or deephaven_default_worker()}")
+        logging.info(f"deephaven_list_tables: Session created successfully for worker: {worker_name or _config.deephaven_default_worker()}")
         tables = list(session.tables)
         logging.info(f"deephaven_list_tables: Retrieved tables from session: {tables!r}")
         logging.info(f"deephaven_list_tables: returning tables: {tables!r}")
         return tables
     except Exception as e:
-        logging.error(f"deephaven_list_tables failed for worker: {worker_name or deephaven_default_worker()}, error: {e!r}", exc_info=True)
+        logging.error(f"deephaven_list_tables failed for worker: {worker_name or _config.deephaven_default_worker()}, error: {e!r}", exc_info=True)
         return [f"Error: {e}"]
 
 
@@ -156,7 +156,7 @@ def deephaven_table_schemas(worker_name: Optional[str] = None) -> list:
     results = []
     try:
         session = get_session(worker_name)
-        logging.info(f"deephaven_table_schemas: Session created successfully for worker: {worker_name or deephaven_default_worker()}")
+        logging.info(f"deephaven_table_schemas: Session created successfully for worker: {worker_name or _config.deephaven_default_worker()}")
 
         for table in session.tables:
             meta_table = session.open_table(table).meta_table.to_arrow()
@@ -167,6 +167,6 @@ def deephaven_table_schemas(worker_name: Optional[str] = None) -> list:
         logging.info(f"deephaven_table_schemas: returning: {results!r}")
         return results
     except Exception as e:
-        logging.error(f"deephaven_table_schemas: failed for worker: {worker_name or deephaven_default_worker()}, error: {e!r}", exc_info=True)
+        logging.error(f"deephaven_table_schemas: failed for worker: {worker_name or _config.deephaven_default_worker()}, error: {e!r}", exc_info=True)
         return [f"Error: {e}"]
 
