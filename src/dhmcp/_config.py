@@ -55,7 +55,7 @@ Dictionary of allowed worker configuration fields and their expected types.
 Type: dict[str, type | tuple[type, ...]]
 """
 
-def load_config() -> Dict[str, Any]:
+def _load_config() -> Dict[str, Any]:
     """
     Loads and validates the Deephaven worker configuration from the path specified by the DH_MCP_CONFIG_FILE environment variable.
 
@@ -150,7 +150,7 @@ def get_worker_config(worker_name: Optional[str] = None) -> Dict[str, Any]:
     Raises:
         RuntimeError: If no workers are defined, or if the worker is not found and no default_worker is set.
     """
-    config = load_config()
+    config = _load_config()
     workers = config.get("workers", {})
 
     # Validate that workers exist and are a dictionary
@@ -176,7 +176,7 @@ def deephaven_worker_names() -> list[str]:
         list[str]: List of Deephaven worker names.
     """
 
-    config = load_config()
+    config = _load_config()
     workers = config.get("workers", {})
     return list(workers.keys())
 
@@ -188,5 +188,5 @@ def deephaven_default_worker() -> Optional[str]:
         Optional[str]: The default worker name, or None if not set.
     """
 
-    config = load_config()
+    config = _load_config()
     return config.get("default_worker")

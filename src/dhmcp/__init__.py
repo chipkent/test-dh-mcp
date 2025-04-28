@@ -33,7 +33,7 @@ import logging
 from typing import Optional
 from mcp.server.fastmcp import FastMCP
 from pydeephaven import Session
-from ._config import load_config, get_worker_config, deephaven_worker_names, deephaven_default_worker
+from ._config import get_worker_config, deephaven_worker_names, deephaven_default_worker
 
 #TODO: add worker session caching
 #TODO: add a tool to reload / refresh the configuration / search for new servers
@@ -138,9 +138,7 @@ def deephaven_default_worker() -> str:
     Returns:
         str: The default worker name
     """
-    config = load_config()
-    return config.get("default_worker")
-
+    return deephaven_default_worker()
 
 @mcp_server.tool()
 def deephaven_worker_names() -> list[str]:
@@ -150,10 +148,7 @@ def deephaven_worker_names() -> list[str]:
     Returns:
         list[str]: List of Deephaven worker names.
     """
-    config = load_config()
-    workers = config.get("workers", {})
-    return list(workers.keys())
-
+    return deephaven_worker_names()
 
 @mcp_server.tool()
 def deephaven_list_tables(worker_name: Optional[str] = None) -> list:
