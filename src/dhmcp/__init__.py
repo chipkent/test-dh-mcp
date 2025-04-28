@@ -35,7 +35,6 @@ from mcp.server.fastmcp import FastMCP
 from ._config import get_worker_config, deephaven_worker_names, deephaven_default_worker, clear_config_cache, _CONFIG_CACHE_LOCK
 from ._sessions import get_session, clear_session_cache, _SESSION_CACHE_LOCK
 
-#TODO: add a tool to reload / refresh the configuration / search for new servers
 
 mcp_server = FastMCP("test-dh-mcp")
 
