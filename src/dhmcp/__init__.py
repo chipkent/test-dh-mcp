@@ -35,7 +35,6 @@ from mcp.server.fastmcp import FastMCP
 from ._config import deephaven_worker_names, deephaven_default_worker
 from ._sessions import get_session
 
-#TODO: add worker session caching
 #TODO: add a tool to reload / refresh the configuration / search for new servers
 
 mcp_server = FastMCP("test-dh-mcp")
@@ -102,12 +101,12 @@ def deephaven_list_tables(worker_name: Optional[str] = None) -> list:
         list: List of table names available in the Deephaven worker.
     """
     try:
-        with get_session(worker_name) as session:
-            logging.info(f"deephaven_list_tables: Session created successfully for worker: {worker_name or deephaven_default_worker()}")
-            tables = list(session.tables)
-            logging.info(f"deephaven_list_tables: Retrieved tables from session: {tables!r}")
-            logging.info(f"deephaven_list_tables: returning tables: {tables!r}")
-            return tables
+        session = get_session(worker_name)
+        logging.info(f"deephaven_list_tables: Session created successfully for worker: {worker_name or deephaven_default_worker()}")
+        tables = list(session.tables)
+        logging.info(f"deephaven_list_tables: Retrieved tables from session: {tables!r}")
+        logging.info(f"deephaven_list_tables: returning tables: {tables!r}")
+        return tables
     except Exception as e:
         logging.error(f"deephaven_list_tables failed for worker: {worker_name or deephaven_default_worker()}, error: {e!r}", exc_info=True)
         return [f"Error: {e}"]
@@ -131,17 +130,17 @@ def deephaven_table_schemas(worker_name: Optional[str] = None) -> list:
     """
     results = []
     try:
-        with get_session(worker_name) as session:
-            logging.info(f"deephaven_table_schemas: Session created successfully for worker: {worker_name or deephaven_default_worker()}")
+        session = get_session(worker_name)
+        logging.info(f"deephaven_table_schemas: Session created successfully for worker: {worker_name or deephaven_default_worker()}")
 
-            for table in session.tables:
-                meta_table = session.open_table(table).meta_table.to_arrow()
-                # meta_table is a pyarrow.Table with columns: 'Name', 'DataType', etc.
-                schema = {row["Name"]: row["DataType"] for row in meta_table.to_pylist()}
-                results.append({"table": table, "schema": schema})
+        for table in session.tables:
+            meta_table = session.open_table(table).meta_table.to_arrow()
+            # meta_table is a pyarrow.Table with columns: 'Name', 'DataType', etc.
+            schema = {row["Name"]: row["DataType"] for row in meta_table.to_pylist()}
+            results.append({"table": table, "schema": schema})
 
-            logging.info(f"deephaven_table_schemas: returning: {results!r}")
-            return results
+        logging.info(f"deephaven_table_schemas: returning: {results!r}")
+        return results
     except Exception as e:
         logging.error(f"deephaven_table_schemas: failed for worker: {worker_name or deephaven_default_worker()}, error: {e!r}", exc_info=True)
         return [f"Error: {e}"]
