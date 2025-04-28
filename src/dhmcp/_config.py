@@ -1,13 +1,42 @@
+"""
+Configuration management for Deephaven worker servers.
+
+This module provides centralized logic for loading, validating, and accessing
+Deephaven worker configuration from a JSON file, as specified by the
+DH_MCP_CONFIG_FILE environment variable. It ensures robust error handling,
+strict schema validation, and provides helpers for retrieving worker names
+and the default worker.
+
+Main Features:
+- Loads and caches configuration from a JSON file.
+- Validates config structure and required/allowed fields.
+- Provides access to individual worker configs and worker lists.
+- Enforces that only 'workers' and 'default_worker' are top-level keys.
+- Designed for use by other modules and tools in the dhmcp package.
+"""
+
 import os
 import json
 import logging
 from typing import Optional, Dict, Any
 
 _CONFIG_CACHE: Optional[Dict[str, Any]] = None
-CONFIG_ENV_VAR = "DH_MCP_CONFIG_FILE"
+"""
+Cache for the loaded Deephaven worker configuration.
+Type: Optional[Dict[str, Any]]
+"""
 
-# No required fields. All worker fields are optional.
+CONFIG_ENV_VAR = "DH_MCP_CONFIG_FILE"
+"""
+The name of the environment variable that specifies the path to the worker config file.
+Type: str
+"""
+
 _REQUIRED_FIELDS = []
+"""
+List of required fields for each worker configuration.
+Type: list[str]
+"""
 
 _ALLOWED_WORKER_FIELDS = {
     "host": str,
@@ -21,11 +50,21 @@ _ALLOWED_WORKER_FIELDS = {
     "client_cert_chain": (str, type(None)),
     "client_private_key": (str, type(None)),
 }
+"""
+Dictionary of allowed worker configuration fields and their expected types.
+Type: dict[str, type | tuple[type, ...]]
+"""
 
 def load_config() -> Dict[str, Any]:
     """
-    Load the Deephaven worker configuration from the path specified by the DH_MCP_CONFIG_FILE environment variable.
-    This environment variable is required. If it is not set, an error is raised.
+    Loads and validates the Deephaven worker configuration from the path specified by the DH_MCP_CONFIG_FILE environment variable.
+
+    Returns:
+        Dict[str, Any]: The loaded and validated configuration dictionary.
+
+    Raises:
+        RuntimeError: If the environment variable is not set or the file cannot be read.
+        ValueError: If the config file is not a JSON object (dict), contains unknown keys, or fails validation.
     """
     global _CONFIG_CACHE
 
@@ -91,26 +130,54 @@ def load_config() -> Dict[str, Any]:
 
 def get_worker_config(worker_name: Optional[str] = None) -> Dict[str, Any]:
     """
-    Retrieve the configuration for the specified worker. If worker_name is None, uses the default_worker from config.
-    Raises an error if neither is available or if the worker is not found.
+    Retrieve the configuration dictionary for a specified worker.
+
+    Args:
+        worker_name (Optional[str]): The name of the worker. If None, uses the default_worker from config.
+
+    Returns:
+        Dict[str, Any]: The configuration dictionary for the specified worker.
+
+    Raises:
+        RuntimeError: If no workers are defined, or if the worker is not found and no default_worker is set.
     """
     config = load_config()
     workers = config.get("workers", {})
+
+    # Validate that workers exist and are a dictionary
     if not workers or not isinstance(workers, dict):
         raise RuntimeError("No workers defined in Deephaven config file, or workers is not a dictionary.")
-    # Determine worker name
-    name = worker_name or config.get("default_worker")
-    if not name:
+
+    # Determine which worker name to use
+    resolved_worker = worker_name or config.get("default_worker")
+    if not resolved_worker:
         raise RuntimeError("No worker name specified (via argument or default_worker in config).")
-    if name not in workers:
-        raise RuntimeError(f"Worker '{name}' not found in config.")
-    return workers[name]
+
+    # Check that the resolved worker exists
+    if resolved_worker not in workers:
+        raise RuntimeError(f"Worker '{resolved_worker}' not found in config.")
+
+    return workers[resolved_worker]
 
 def deephaven_worker_names() -> list[str]:
+    """
+    Returns a list of all configured Deephaven worker names from the configuration.
+
+    Returns:
+        list[str]: List of Deephaven worker names.
+    """
+
     config = load_config()
     workers = config.get("workers", {})
     return list(workers.keys())
 
 def deephaven_default_worker() -> Optional[str]:
+    """
+    Returns the name of the default Deephaven worker, if set in the configuration.
+
+    Returns:
+        Optional[str]: The default worker name, or None if not set.
+    """
+
     config = load_config()
     return config.get("default_worker")
