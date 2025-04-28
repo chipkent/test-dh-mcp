@@ -161,7 +161,12 @@ def deephaven_table_schemas(worker_name: Optional[str] = None, tables: Optional[
         session = get_session(worker_name)
         logging.info(f"deephaven_table_schemas: Session created successfully for worker: {worker_name or _config.deephaven_default_worker()}")
 
-        table_names = tables if tables is not None else list(session.tables)
+        if tables is not None:
+            table_names = tables
+            logging.info(f"deephaven_table_schemas: Fetching schemas for user-provided tables: {table_names!r}")
+        else:
+            table_names = list(session.tables)
+            logging.info(f"deephaven_table_schemas: Fetching schemas for all tables in worker (default): {table_names!r}")
         for table in table_names:
             try:
                 meta_table = session.open_table(table).meta_table.to_arrow()
