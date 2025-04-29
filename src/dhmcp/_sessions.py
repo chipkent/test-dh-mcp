@@ -48,7 +48,7 @@ def clear_session_cache() -> None:
         """
         logging.info(f"CALL: _close_session_if_alive called with worker_key={worker_key!r}, session={session!r}")
         try:
-            if hasattr(session, "is_alive") and session.is_alive():
+            if hasattr(session, "is_alive") and session.is_alive:
                 session.close()
                 logging.info(f"Closed alive Deephaven session for worker: {worker_key}")
         except Exception as exc:
