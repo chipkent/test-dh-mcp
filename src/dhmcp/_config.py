@@ -158,6 +158,28 @@ def _load_config() -> Dict[str, Any]:
         return _CONFIG_CACHE
 
 
+def resolve_worker_name(worker_name: Optional[str] = None) -> str:
+    """
+    Resolve the worker name to use, either from the provided worker_name or the default_worker from config.
+
+    Args:
+        worker_name (str, optional): The name of the worker to retrieve. If None, uses the default_worker from config.
+
+    Returns:
+        str: The resolved worker name.
+
+    Raises:
+        RuntimeError: If no worker name is specified (via argument or default_worker in config).
+    """
+    config = _load_config()
+    resolved_worker = worker_name or config.get("default_worker")
+
+    if not resolved_worker:
+        raise RuntimeError("No worker name specified (via argument or default_worker in config).")
+
+    return resolved_worker
+
+
 def get_worker_config(worker_name: Optional[str] = None) -> Dict[str, Any]:
     """
     Retrieve the configuration dictionary for a specific worker.
@@ -172,21 +194,11 @@ def get_worker_config(worker_name: Optional[str] = None) -> Dict[str, Any]:
         RuntimeError: If no workers are defined, the worker is not found, or no default_worker is set.
     """
     config = _load_config()
-    workers = config.get("workers", {})
+    workers = config.get("workers")
+    resolved_worker = resolve_worker_name(worker_name)
 
-    # Validate that workers exist and are a dictionary
-    if not workers or not isinstance(workers, dict):
-        raise RuntimeError("No workers defined in Deephaven config file, or workers is not a dictionary.")
-
-    # Determine which worker name to use
-    resolved_worker = worker_name or config.get("default_worker")
-    if not resolved_worker:
-        raise RuntimeError("No worker name specified (via argument or default_worker in config).")
-
-    # Check that the resolved worker exists
     if resolved_worker not in workers:
         raise RuntimeError(f"Worker '{resolved_worker}' not found in config.")
-
     return workers[resolved_worker]
 
 
@@ -211,4 +223,3 @@ def deephaven_default_worker() -> Optional[str]:
     """
     config = _load_config()
     return config.get("default_worker")
-

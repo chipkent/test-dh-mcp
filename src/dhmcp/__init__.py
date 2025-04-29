@@ -127,13 +127,12 @@ def deephaven_list_table_names(worker_name: Optional[str] = None) -> list:
     """
     try:
         session = get_session(worker_name)
-        logging.info(f"deephaven_list_tables: Session created successfully for worker: {worker_name or _config.deephaven_default_worker()}")
+        logging.info(f"deephaven_list_tables: Session obtained successfully for worker: '{worker_name}'")
         tables = list(session.tables)
         logging.info(f"deephaven_list_tables: Retrieved tables from session: {tables!r}")
-        logging.info(f"deephaven_list_tables: returning tables: {tables!r}")
         return tables
     except Exception as e:
-        logging.error(f"deephaven_list_tables failed for worker: {worker_name or _config.deephaven_default_worker()}, error: {e!r}", exc_info=True)
+        logging.error(f"deephaven_list_tables failed for worker: '{worker_name}', error: {e!r}", exc_info=True)
         return [f"Error: {e}"]
 
 
@@ -159,7 +158,7 @@ def deephaven_table_schemas(worker_name: Optional[str] = None, table_names: Opti
     results = []
     try:
         session = get_session(worker_name)
-        logging.info(f"deephaven_table_schemas: Session created successfully for worker: {worker_name or _config.deephaven_default_worker()}")
+        logging.info(f"deephaven_table_schemas: Session obtained successfully for worker: '{worker_name}'")
 
         if table_names is not None:
             selected_table_names = table_names
@@ -183,6 +182,49 @@ def deephaven_table_schemas(worker_name: Optional[str] = None, table_names: Opti
         logging.info(f"deephaven_table_schemas: returning: {results!r}")
         return results
     except Exception as e:
-        logging.error(f"deephaven_table_schemas: failed for worker: {worker_name or _config.deephaven_default_worker()}, error: {e!r}", exc_info=True)
+        logging.error(f"deephaven_table_schemas: failed for worker: '{worker_name}', error: {e!r}", exc_info=True)
         return [f"Error: {e}"]
+
+
+@mcp_server.tool()
+def deephaven_run_script(worker_name: Optional[str] = None, script: Optional[str] = None, script_path: Optional[str] = None) -> dict:
+    """
+    MCP Tool: Run a script on a Deephaven server.
+
+    Executes the provided script (as a string or from a file path) on the specified Deephaven worker.
+    The script language is determined by the worker configuration (e.g., Python, Groovy, etc.).
+    Returns a dict with 'success' and/or 'error'.
+
+    Args:
+        worker_name (str, optional): Name of the Deephaven worker. Uses default if not provided.
+        script (str, optional): Script source code to execute.
+        script_path (str, optional): Path to a script file to execute (if script is not provided).
+    Returns:
+        dict: {'success': bool, 'error': str (if any)}
+    """
+
+    #TODO add logging to all functions
+    logging.warning(f"DEBUG: worker_name={worker_name}, script={script}, script_path={script_path}")
+
+    result = {"success": False, "error": ""}
+    try:
+        if script is None and script_path is None:
+            result["error"] = "Must provide either script or script_path."
+            return result
+
+        if script is None:
+            with open(script_path, "r") as f:
+                script = f.read()
+
+        session = get_session(worker_name)
+        logging.info(f"deephaven_run_script: Session obtained successfully for worker: '{worker_name}'")
+
+        logging.info(f"deephaven_run_script: Executing script on worker: '{worker_name}'")
+        session.run_script(script)
+        logging.info(f"deephaven_run_script: Script executed successfully on worker: '{worker_name}'")
+        result["success"] = True
+    except Exception as e:
+        logging.error(f"deephaven_run_script: failed for worker: '{worker_name}', error: {e!r}", exc_info=True)
+        result["error"] = str(e)
+    return result
 
