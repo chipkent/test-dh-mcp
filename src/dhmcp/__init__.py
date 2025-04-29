@@ -50,6 +50,7 @@ def echo_tool(message: str) -> str:
     Returns:
         str: The echoed message, prefixed with 'Echo: '.
     """
+    logging.info(f"CALL: echo_tool called with message={message!r}")
     result = f"Echo: {message}"
     logging.info("echo_tool called with message: %r, returning: %r", message, result)
     return result
@@ -63,6 +64,7 @@ def gnome_count_colorado() -> int:
     Returns:
         int: The number of gnomes in Colorado.
     """
+    logging.info("CALL: gnome_count_colorado called with no arguments")
     count = 53
     logging.info("gnome_count_colorado called, returning: %d", count)
     return count
@@ -75,6 +77,7 @@ def deephaven_refresh() -> None:
     This allows new workers to be added or existing workers to be removed.
     It also reopens all sessions to the workers to handle any expired or disconnected sessions.
     """
+    logging.info("CALL: deephaven_refresh called with no arguments")
     with _CONFIG_CACHE_LOCK:
         with _SESSION_CACHE_LOCK:
             clear_config_cache()
@@ -93,6 +96,7 @@ def deephaven_default_worker() -> Optional[str]:
     Returns:
         str: The default worker name as defined in the config file.
     """
+    logging.info("CALL: deephaven_default_worker called with no arguments")
     return _config.deephaven_default_worker()
 
 @mcp_server.tool()
@@ -106,6 +110,7 @@ def deephaven_worker_names() -> list[str]:
     Returns:
         list[str]: List of all Deephaven worker names from the config file.
     """
+    logging.info("CALL: deephaven_worker_names called with no arguments")
     return _config.deephaven_worker_names()
 
 @mcp_server.tool()
@@ -125,6 +130,7 @@ def deephaven_list_table_names(worker_name: Optional[str] = None) -> list:
     Raises:
         Exception: If the session cannot be created or tables cannot be retrieved. Errors are logged.
     """
+    logging.info(f"CALL: deephaven_list_table_names called with worker_name={worker_name!r}")
     try:
         session = get_session(worker_name)
         logging.info(f"deephaven_list_tables: Session obtained successfully for worker: '{worker_name}'")
@@ -155,6 +161,7 @@ def deephaven_table_schemas(worker_name: Optional[str] = None, table_names: Opti
             ...
         ]
     """
+    logging.info(f"CALL: deephaven_table_schemas called with worker_name={worker_name!r}, table_names={table_names!r}")
     results = []
     try:
         session = get_session(worker_name)
@@ -202,10 +209,7 @@ def deephaven_run_script(worker_name: Optional[str] = None, script: Optional[str
     Returns:
         dict: {'success': bool, 'error': str (if any)}
     """
-
-    #TODO add logging to all functions
-    logging.warning(f"DEBUG: worker_name={worker_name}, script={script}, script_path={script_path}")
-
+    logging.info(f"CALL: deephaven_run_script called with worker_name={worker_name!r}, script={(script[:40] + '...') if script and len(script) > 40 else script!r}, script_path={script_path!r}")
     result = {"success": False, "error": ""}
     try:
         if script is None and script_path is None:
