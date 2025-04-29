@@ -58,5 +58,16 @@ async def main():
         result = await gnome_count_tool.run_json({}, cancellation_token=CancellationToken())
         print("gnome_count_colorado result:", result)
 
+    deephaven_list_table_names = next((t for t in tools if t.name == "deephaven_list_table_names"), None)
+    if deephaven_list_table_names:
+        result = await deephaven_list_table_names.run_json({}, cancellation_token=CancellationToken())
+        print("deephaven_list_table_names result:", result)
+    if deephaven_list_table_names:
+        result = await deephaven_list_table_names.run_json({"worker_name": "worker1"}, cancellation_token=CancellationToken())
+        print(f"deephaven_list_table_names (worker1): {result!r}")
+    if deephaven_list_table_names:
+        result = await deephaven_list_table_names.run_json({"worker_name": "worker2"}, cancellation_token=CancellationToken())
+        print(f"deephaven_list_table_names (worker2): {result!r}")
+
 if __name__ == "__main__":
     asyncio.run(main())
