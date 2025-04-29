@@ -39,6 +39,10 @@ This project demonstrates how to define and run an MCP (Multi-Channel Protocol) 
    uv run src/mcp_server.py
    uv run src/mcp_client.py
    ```
+4. **Upgrade dependencies:**
+   ```bash
+   uv sync --upgrade
+   ```
 
 ### Compatibility Workflow (requirements.txt)
 - If you have an existing `requirements.txt`, you can use:
@@ -307,17 +311,23 @@ The MCP Inspector is a tool that allows you to inspect the state of an MCP serve
 
 1. Install the MCP Inspector:
     ```bash
-    npm install -g @modelcontextprotocol/inspector
+    npm install -g @modelcontextprotocol/inspector@latest
     ```
 
 2. Run the MCP Inspector:
+
+> **⚠️ WARNING:**
+> When using the MCP Inspector, all string values must be entered with quotes (e.g., "worker1").
+> If you do not use quotes, the Inspector may send `null` or invalid values to the server.
+> The value can be validated by clicking on the `Format JSON` button.
+
     - ** SSE mode: **
 
         - Using `venv`:
 
         ```bash
         cd /Users/chip/dev/test-dh-mcp/src
-        npx @modelcontextprotocol/inspector \
+        npx @modelcontextprotocol/inspector@latest \
         /Users/chip/dev/test-dh-mcp/venv/bin/python3 mcp_server.py --transport sse
         ```
 
@@ -325,7 +335,7 @@ The MCP Inspector is a tool that allows you to inspect the state of an MCP serve
 
         ```bash
         cd /Users/chip/dev/test-dh-mcp/src
-        npx @modelcontextprotocol/inspector \
+        npx @modelcontextprotocol/inspector@latest \
         uv run mcp_server.py --transport sse
         ```
 
@@ -335,7 +345,7 @@ The MCP Inspector is a tool that allows you to inspect the state of an MCP serve
 
         ```
         cd /Users/chip/dev/test-dh-mcp/src
-        npx @modelcontextprotocol/inspector \
+        npx @modelcontextprotocol/inspector@latest \
         /Users/chip/dev/test-dh-mcp/venv/bin/python3 mcp_server.py --transport stdio
         ```
 
@@ -343,7 +353,7 @@ The MCP Inspector is a tool that allows you to inspect the state of an MCP serve
 
         ```bash
         cd /Users/chip/dev/test-dh-mcp/src
-        npx @modelcontextprotocol/inspector \
+        npx @modelcontextprotocol/inspector@latest \
         uv run mcp_server.py --transport stdio
         ```
 

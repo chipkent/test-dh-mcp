@@ -17,7 +17,7 @@ from typing import Optional
 from pydeephaven import Session
 import logging
 import threading
-from ._config import get_worker_config
+from ._config import get_worker_config, resolve_worker_name
 
 
 _SESSION_CACHE = {}
@@ -35,6 +35,7 @@ def clear_session_cache() -> None:
     and do not prevent other sessions from being closed. After all sessions are processed,
     the cache is emptied. This function is thread-safe and acquires the session cache lock.
     """
+    logging.info("CALL: clear_session_cache called with no arguments")
     logging.info("Clearing Deephaven session cache...")
     
     def _close_session_if_alive(worker_key, session):
@@ -45,8 +46,9 @@ def clear_session_cache() -> None:
             worker_key (str): The cache key for the worker.
             session (Session): The Deephaven session instance.
         """
+        logging.info(f"CALL: _close_session_if_alive called with worker_key={worker_key!r}, session={session!r}")
         try:
-            if hasattr(session, "is_alive") and session.is_alive():
+            if hasattr(session, "is_alive") and session.is_alive:
                 session.close()
                 logging.info(f"Closed alive Deephaven session for worker: {worker_key}")
         except Exception as exc:
@@ -78,16 +80,16 @@ def get_session(worker_name: Optional[str] = None) -> Session:
         RuntimeError: If required configuration fields are missing or invalid.
         Exception: If session creation fails or certificates cannot be loaded.
     """
-    # Use worker name as cache key
-    resolved_worker = worker_name or None  # None means use default in get_worker_config
-    cache_key = resolved_worker or "__default__"
+    logging.info(f"CALL: get_session called with worker_name={worker_name!r}")
+    resolved_worker = resolve_worker_name(worker_name)
+    logging.info(f"Resolving worker name: {worker_name} -> {resolved_worker}")
 
     # First, check and create the session in a single atomic lock block
     with _SESSION_CACHE_LOCK:
-        session = _SESSION_CACHE.get(cache_key)
+        session = _SESSION_CACHE.get(resolved_worker)
         if session is not None:
             try:
-                if session.is_alive():
+                if session.is_alive:
                     logging.info(f"Returning cached Deephaven session for worker: {resolved_worker}")
                     return session
                 else:
@@ -110,6 +112,10 @@ def get_session(worker_name: Optional[str] = None) -> Session:
 
         # Load certificate files as bytes if provided as file paths, with logging (outside lock if slow)
         def _load_bytes(path):
+            """
+            Helper to load bytes from a file path, or return None if path is None.
+            """
+            logging.info(f"CALL: _load_bytes called with path={path!r}")
             if path is None:
                 return None
             try:
@@ -125,12 +131,14 @@ def get_session(worker_name: Optional[str] = None) -> Session:
             logging.info("Loaded TLS root certs successfully.")
         else:
             logging.info("No TLS root certs provided for session.")
+ 
         if client_cert_chain:
             logging.info(f"Loading client cert chain from: {cfg.get('client_cert_chain')}")
             client_cert_chain = _load_bytes(client_cert_chain)
             logging.info("Loaded client cert chain successfully.")
         else:
             logging.info("No client cert chain provided for session.")
+ 
         if client_private_key:
             logging.info(f"Loading client private key from: {cfg.get('client_private_key')}")
             client_private_key = _load_bytes(client_private_key)
@@ -142,13 +150,17 @@ def get_session(worker_name: Optional[str] = None) -> Session:
         log_cfg = dict(cfg)
         if "auth_token" in log_cfg:
             log_cfg["auth_token"] = "<redacted>"
+ 
         if "client_private_key" in log_cfg:
             log_cfg["client_private_key"] = "<redacted>"
+ 
         if "client_cert_chain" in log_cfg:
             log_cfg["client_cert_chain"] = "<redacted>"
+ 
         if "tls_root_certs" in log_cfg:
             log_cfg["tls_root_certs"] = "<redacted>"
-        logging.info(f"Creating Deephaven Session with config: {log_cfg} (worker cache key: {cache_key})")
+ 
+        logging.info(f"Creating Deephaven Session with config: {log_cfg} (worker cache key: {resolved_worker})")
 
         session = Session(
             host=host,
@@ -162,7 +174,7 @@ def get_session(worker_name: Optional[str] = None) -> Session:
             client_cert_chain=client_cert_chain,
             client_private_key=client_private_key,
         )
-        logging.info(f"Session created for worker '{cache_key}', adding to cache.")
-        _SESSION_CACHE[cache_key] = session
-        logging.info(f"Session cached for worker '{cache_key}'. Returning session.")
+        logging.info(f"Session created for worker '{resolved_worker}', adding to cache.")
+        _SESSION_CACHE[resolved_worker] = session
+        logging.info(f"Session cached for worker '{resolved_worker}'. Returning session.")
         return session

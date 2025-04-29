@@ -36,6 +36,7 @@ def clear_config_cache() -> None:
     This ensures that future config loads will re-read from disk. Thread-safe and
     safe to call concurrently or recursively (uses a reentrant lock).
     """
+    logging.info("CALL: clear_config_cache called with no arguments")
     logging.info("Clearing Deephaven configuration cache...")
     global _CONFIG_CACHE
     
@@ -84,6 +85,7 @@ def _load_config() -> Dict[str, Any]:
         RuntimeError: If the environment variable is not set, or the file cannot be read.
         ValueError: If the config file is not a JSON object, contains unknown keys, or fails validation.
     """
+    logging.info("CALL: _load_config called with no arguments")
     global _CONFIG_CACHE
 
     # Thread-safe read of the config cache
@@ -158,6 +160,28 @@ def _load_config() -> Dict[str, Any]:
         return _CONFIG_CACHE
 
 
+def resolve_worker_name(worker_name: Optional[str] = None) -> str:
+    """
+    Resolve the worker name to use, either from the provided worker_name or the default_worker from config.
+
+    Args:
+        worker_name (str, optional): The name of the worker to retrieve. If None, uses the default_worker from config.
+
+    Returns:
+        str: The resolved worker name.
+
+    Raises:
+        RuntimeError: If no worker name is specified (via argument or default_worker in config).
+    """
+    logging.info(f"CALL: resolve_worker_name called with worker_name={worker_name!r}")
+    config = _load_config()
+    resolved_worker = worker_name or config.get("default_worker")
+
+    if not resolved_worker:
+        raise RuntimeError("No worker name specified (via argument or default_worker in config).")
+
+    return resolved_worker
+
 def get_worker_config(worker_name: Optional[str] = None) -> Dict[str, Any]:
     """
     Retrieve the configuration dictionary for a specific worker.
@@ -171,22 +195,13 @@ def get_worker_config(worker_name: Optional[str] = None) -> Dict[str, Any]:
     Raises:
         RuntimeError: If no workers are defined, the worker is not found, or no default_worker is set.
     """
+    logging.info(f"CALL: get_worker_config called with worker_name={worker_name!r}")
     config = _load_config()
-    workers = config.get("workers", {})
+    workers = config.get("workers")
+    resolved_worker = resolve_worker_name(worker_name)
 
-    # Validate that workers exist and are a dictionary
-    if not workers or not isinstance(workers, dict):
-        raise RuntimeError("No workers defined in Deephaven config file, or workers is not a dictionary.")
-
-    # Determine which worker name to use
-    resolved_worker = worker_name or config.get("default_worker")
-    if not resolved_worker:
-        raise RuntimeError("No worker name specified (via argument or default_worker in config).")
-
-    # Check that the resolved worker exists
     if resolved_worker not in workers:
         raise RuntimeError(f"Worker '{resolved_worker}' not found in config.")
-
     return workers[resolved_worker]
 
 
@@ -197,6 +212,7 @@ def deephaven_worker_names() -> list[str]:
     Returns:
         list[str]: List of worker names defined in the configuration.
     """
+    logging.info("CALL: deephaven_worker_names called with no arguments")
     config = _load_config()
     workers = config.get("workers", {})
     return list(workers.keys())
@@ -209,6 +225,6 @@ def deephaven_default_worker() -> Optional[str]:
     Returns:
         str or None: The default worker name, or None if not set in the config.
     """
+    logging.info("CALL: deephaven_default_worker called with no arguments")
     config = _load_config()
     return config.get("default_worker")
-
